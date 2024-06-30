@@ -9,7 +9,6 @@ def add_alpha_channel(original_path, alpha_path, output_path):
     alpha_image = Image.open(alpha_path)
     alpha_image = alpha_image.convert("L")
     alpha_image = alpha_image.resize(original_image.size)
-    alpha_image = ImageOps.invert(alpha_image)
     r, g, b, _ = original_image.split()
     new_image = Image.merge("RGBA", (r, g, b, alpha_image))
     new_image.save(output_path)
