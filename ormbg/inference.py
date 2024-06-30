@@ -15,13 +15,13 @@ def parse_args():
     parser.add_argument(
         "--input",
         type=str,
-        default=os.path.join("examples", "image01.png"),
+        default=os.path.join("examples", "image01_depth.png"),
         help="Path to the input image file.",
     )
     parser.add_argument(
         "--output",
         type=str,
-        default=os.path.join("no-background.png"),
+        default=os.path.join("image01_no_background.png"),
         help="Path to the output image file.",
     )
     parser.add_argument(
