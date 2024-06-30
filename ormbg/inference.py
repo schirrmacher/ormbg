@@ -13,9 +13,15 @@ def parse_args():
         description="Remove background from images using ORMBG model."
     )
     parser.add_argument(
-        "--input",
+        "--depth",
         type=str,
-        default=os.path.join("examples", "image01_depth.png"),
+        default=os.path.join("examples", "merged", "image01.png"),
+        help="Path to the input image file.",
+    )
+    parser.add_argument(
+        "--image",
+        type=str,
+        default=os.path.join("examples", "image", "image01.png"),
         help="Path to the input image file.",
     )
     parser.add_argument(
@@ -55,7 +61,8 @@ def postprocess_image(result: torch.Tensor, im_size: list) -> np.ndarray:
 
 
 def inference(args):
-    image_path = args.input
+    depth_image_path = args.depth
+    image_path = args.image
     result_name = args.output
     model_path = args.model_path
 
@@ -70,7 +77,7 @@ def inference(args):
     net.eval()
 
     model_input_size = [1024, 1024]
-    orig_im = io.imread(image_path)
+    orig_im = io.imread(depth_image_path)
     orig_im_size = orig_im.shape[0:2]
     image = preprocess_image(orig_im, model_input_size).to(device)
 
@@ -81,6 +88,11 @@ def inference(args):
 
     # save result
     pil_im = Image.fromarray(result_image)
+
+    if pil_im.mode == "RGBA":
+        print("RGBA given")
+        pil_im = pil_im.convert("RGB")
+
     no_bg_image = Image.new("RGBA", pil_im.size, (0, 0, 0, 0))
     orig_image = Image.open(image_path)
     no_bg_image.paste(orig_image, mask=pil_im)
