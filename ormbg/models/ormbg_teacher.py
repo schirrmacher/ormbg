@@ -5,14 +5,19 @@ import torch.nn.functional as F
 # https://github.com/xuebinqin/DIS/blob/main/IS-Net/models/isnet.py
 
 
-class REBNCONV(nn.Module):
-    def __init__(self, in_ch=4, out_ch=3, dirate=1, stride=1):
-        super(REBNCONV, self).__init__()
+class ReluBatchNormConv(nn.Module):
+    def __init__(self, in_channels=4, out_channels=4, dirate=1, stride=1):
+        super(ReluBatchNormConv, self).__init__()
 
         self.conv_s1 = nn.Conv2d(
-            in_ch, out_ch, 3, padding=1 * dirate, dilation=1 * dirate, stride=stride
+            in_channels=in_channels,
+            out_channels=out_channels,
+            kernel_size=3,
+            stride=stride,
+            padding=1 * dirate,
+            dilation=1 * dirate,
         )
-        self.bn_s1 = nn.BatchNorm2d(out_ch)
+        self.bn_s1 = nn.BatchNorm2d(out_channels)
         self.relu_s1 = nn.ReLU(inplace=True)
 
     def forward(self, x):
@@ -52,43 +57,42 @@ def _upsample_like(src, tar):
 
 class RSU7(nn.Module):
 
-    def __init__(self, in_ch=4, mid_ch=12, out_ch=3, img_size=512):
+    def __init__(self, in_channels=4, mid_ch=12, out_channels=4, img_size=512):
         super(RSU7, self).__init__()
 
-        self.in_ch = in_ch
+        self.in_ch = in_channels
         self.mid_ch = mid_ch
-        self.out_ch = out_ch
+        self.out_ch = out_channels
 
-        self.rebnconvin = REBNCONV(in_ch, out_ch, dirate=1)  ## 1 -> 1/2
+        self.rebnconvin = ReluBatchNormConv(in_channels, out_channels, dirate=1)
 
-        self.rebnconv1 = REBNCONV(out_ch, mid_ch, dirate=1)
-        self.pool1 = nn.MaxPool2d(2, stride=2, ceil_mode=True)
+        self.rebnconv1 = ReluBatchNormConv(out_channels, mid_ch, dirate=1)
+        self.pool1 = nn.MaxPool2d(kernel_size=2, stride=2, ceil_mode=True)
 
-        self.rebnconv2 = REBNCONV(mid_ch, mid_ch, dirate=1)
-        self.pool2 = nn.MaxPool2d(2, stride=2, ceil_mode=True)
+        self.rebnconv2 = ReluBatchNormConv(mid_ch, mid_ch, dirate=1)
+        self.pool2 = nn.MaxPool2d(kernel_size=2, stride=2, ceil_mode=True)
 
-        self.rebnconv3 = REBNCONV(mid_ch, mid_ch, dirate=1)
-        self.pool3 = nn.MaxPool2d(2, stride=2, ceil_mode=True)
+        self.rebnconv3 = ReluBatchNormConv(mid_ch, mid_ch, dirate=1)
+        self.pool3 = nn.MaxPool2d(kernel_size=2, stride=2, ceil_mode=True)
 
-        self.rebnconv4 = REBNCONV(mid_ch, mid_ch, dirate=1)
-        self.pool4 = nn.MaxPool2d(2, stride=2, ceil_mode=True)
+        self.rebnconv4 = ReluBatchNormConv(mid_ch, mid_ch, dirate=1)
+        self.pool4 = nn.MaxPool2d(kernel_size=2, stride=2, ceil_mode=True)
 
-        self.rebnconv5 = REBNCONV(mid_ch, mid_ch, dirate=1)
-        self.pool5 = nn.MaxPool2d(2, stride=2, ceil_mode=True)
+        self.rebnconv5 = ReluBatchNormConv(mid_ch, mid_ch, dirate=1)
+        self.pool5 = nn.MaxPool2d(kernel_size=2, stride=2, ceil_mode=True)
 
-        self.rebnconv6 = REBNCONV(mid_ch, mid_ch, dirate=1)
+        self.rebnconv6 = ReluBatchNormConv(mid_ch, mid_ch, dirate=1)
 
-        self.rebnconv7 = REBNCONV(mid_ch, mid_ch, dirate=2)
+        self.rebnconv7 = ReluBatchNormConv(mid_ch, mid_ch, dirate=2)
 
-        self.rebnconv6d = REBNCONV(mid_ch * 2, mid_ch, dirate=1)
-        self.rebnconv5d = REBNCONV(mid_ch * 2, mid_ch, dirate=1)
-        self.rebnconv4d = REBNCONV(mid_ch * 2, mid_ch, dirate=1)
-        self.rebnconv3d = REBNCONV(mid_ch * 2, mid_ch, dirate=1)
-        self.rebnconv2d = REBNCONV(mid_ch * 2, mid_ch, dirate=1)
-        self.rebnconv1d = REBNCONV(mid_ch * 2, out_ch, dirate=1)
+        self.rebnconv6d = ReluBatchNormConv(mid_ch * 2, mid_ch, dirate=1)
+        self.rebnconv5d = ReluBatchNormConv(mid_ch * 2, mid_ch, dirate=1)
+        self.rebnconv4d = ReluBatchNormConv(mid_ch * 2, mid_ch, dirate=1)
+        self.rebnconv3d = ReluBatchNormConv(mid_ch * 2, mid_ch, dirate=1)
+        self.rebnconv2d = ReluBatchNormConv(mid_ch * 2, mid_ch, dirate=1)
+        self.rebnconv1d = ReluBatchNormConv(mid_ch * 2, out_channels, dirate=1)
 
     def forward(self, x):
-        b, c, h, w = x.shape
 
         hx = x
         hxin = self.rebnconvin(hx)
@@ -134,32 +138,31 @@ class RSU7(nn.Module):
 
 class RSU6(nn.Module):
 
-    def __init__(self, in_ch=4, mid_ch=12, out_ch=3):
+    def __init__(self, in_channels=4, mid_ch=12, out_channels=4):
         super(RSU6, self).__init__()
 
-        self.rebnconvin = REBNCONV(in_ch, out_ch, dirate=1)
+        self.rebnconvin = ReluBatchNormConv(in_channels, out_channels, dirate=1)
 
-        self.rebnconv1 = REBNCONV(out_ch, mid_ch, dirate=1)
-        self.pool1 = nn.MaxPool2d(2, stride=2, ceil_mode=True)
+        self.rebnconv1 = ReluBatchNormConv(out_channels, mid_ch, dirate=1)
+        self.pool1 = nn.MaxPool2d(kernel_size=2, stride=2, ceil_mode=True)
 
-        self.rebnconv2 = REBNCONV(mid_ch, mid_ch, dirate=1)
-        self.pool2 = nn.MaxPool2d(2, stride=2, ceil_mode=True)
+        self.rebnconv2 = ReluBatchNormConv(mid_ch, mid_ch, dirate=1)
+        self.pool2 = nn.MaxPool2d(kernel_size=2, stride=2, ceil_mode=True)
 
-        self.rebnconv3 = REBNCONV(mid_ch, mid_ch, dirate=1)
-        self.pool3 = nn.MaxPool2d(2, stride=2, ceil_mode=True)
+        self.rebnconv3 = ReluBatchNormConv(mid_ch, mid_ch, dirate=1)
+        self.pool3 = nn.MaxPool2d(kernel_size=2, stride=2, ceil_mode=True)
 
-        self.rebnconv4 = REBNCONV(mid_ch, mid_ch, dirate=1)
-        self.pool4 = nn.MaxPool2d(2, stride=2, ceil_mode=True)
+        self.rebnconv4 = ReluBatchNormConv(mid_ch, mid_ch, dirate=1)
+        self.pool4 = nn.MaxPool2d(kernel_size=2, stride=2, ceil_mode=True)
 
-        self.rebnconv5 = REBNCONV(mid_ch, mid_ch, dirate=1)
+        self.rebnconv5 = ReluBatchNormConv(mid_ch, mid_ch, dirate=1)
+        self.rebnconv6 = ReluBatchNormConv(mid_ch, mid_ch, dirate=2)
 
-        self.rebnconv6 = REBNCONV(mid_ch, mid_ch, dirate=2)
-
-        self.rebnconv5d = REBNCONV(mid_ch * 2, mid_ch, dirate=1)
-        self.rebnconv4d = REBNCONV(mid_ch * 2, mid_ch, dirate=1)
-        self.rebnconv3d = REBNCONV(mid_ch * 2, mid_ch, dirate=1)
-        self.rebnconv2d = REBNCONV(mid_ch * 2, mid_ch, dirate=1)
-        self.rebnconv1d = REBNCONV(mid_ch * 2, out_ch, dirate=1)
+        self.rebnconv5d = ReluBatchNormConv(mid_ch * 2, mid_ch, dirate=1)
+        self.rebnconv4d = ReluBatchNormConv(mid_ch * 2, mid_ch, dirate=1)
+        self.rebnconv3d = ReluBatchNormConv(mid_ch * 2, mid_ch, dirate=1)
+        self.rebnconv2d = ReluBatchNormConv(mid_ch * 2, mid_ch, dirate=1)
+        self.rebnconv1d = ReluBatchNormConv(mid_ch * 2, out_channels, dirate=1)
 
     def forward(self, x):
 
@@ -202,28 +205,28 @@ class RSU6(nn.Module):
 
 class RSU5(nn.Module):
 
-    def __init__(self, in_ch=4, mid_ch=12, out_ch=3):
+    def __init__(self, in_channels=4, mid_ch=12, out_channels=4):
         super(RSU5, self).__init__()
 
-        self.rebnconvin = REBNCONV(in_ch, out_ch, dirate=1)
+        self.rebnconvin = ReluBatchNormConv(in_channels, out_channels, dirate=1)
 
-        self.rebnconv1 = REBNCONV(out_ch, mid_ch, dirate=1)
-        self.pool1 = nn.MaxPool2d(2, stride=2, ceil_mode=True)
+        self.rebnconv1 = ReluBatchNormConv(out_channels, mid_ch, dirate=1)
+        self.pool1 = nn.MaxPool2d(kernel_size=2, stride=2, ceil_mode=True)
 
-        self.rebnconv2 = REBNCONV(mid_ch, mid_ch, dirate=1)
-        self.pool2 = nn.MaxPool2d(2, stride=2, ceil_mode=True)
+        self.rebnconv2 = ReluBatchNormConv(mid_ch, mid_ch, dirate=1)
+        self.pool2 = nn.MaxPool2d(kernel_size=2, stride=2, ceil_mode=True)
 
-        self.rebnconv3 = REBNCONV(mid_ch, mid_ch, dirate=1)
-        self.pool3 = nn.MaxPool2d(2, stride=2, ceil_mode=True)
+        self.rebnconv3 = ReluBatchNormConv(mid_ch, mid_ch, dirate=1)
+        self.pool3 = nn.MaxPool2d(kernel_size=2, stride=2, ceil_mode=True)
 
-        self.rebnconv4 = REBNCONV(mid_ch, mid_ch, dirate=1)
+        self.rebnconv4 = ReluBatchNormConv(mid_ch, mid_ch, dirate=1)
 
-        self.rebnconv5 = REBNCONV(mid_ch, mid_ch, dirate=2)
+        self.rebnconv5 = ReluBatchNormConv(mid_ch, mid_ch, dirate=2)
 
-        self.rebnconv4d = REBNCONV(mid_ch * 2, mid_ch, dirate=1)
-        self.rebnconv3d = REBNCONV(mid_ch * 2, mid_ch, dirate=1)
-        self.rebnconv2d = REBNCONV(mid_ch * 2, mid_ch, dirate=1)
-        self.rebnconv1d = REBNCONV(mid_ch * 2, out_ch, dirate=1)
+        self.rebnconv4d = ReluBatchNormConv(mid_ch * 2, mid_ch, dirate=1)
+        self.rebnconv3d = ReluBatchNormConv(mid_ch * 2, mid_ch, dirate=1)
+        self.rebnconv2d = ReluBatchNormConv(mid_ch * 2, mid_ch, dirate=1)
+        self.rebnconv1d = ReluBatchNormConv(mid_ch * 2, out_channels, dirate=1)
 
     def forward(self, x):
 
@@ -260,24 +263,24 @@ class RSU5(nn.Module):
 
 class RSU4(nn.Module):
 
-    def __init__(self, in_ch=4, mid_ch=12, out_ch=3):
+    def __init__(self, in_channels=4, mid_ch=12, out_channels=4):
         super(RSU4, self).__init__()
 
-        self.rebnconvin = REBNCONV(in_ch, out_ch, dirate=1)
+        self.rebnconvin = ReluBatchNormConv(in_channels, out_channels, dirate=1)
 
-        self.rebnconv1 = REBNCONV(out_ch, mid_ch, dirate=1)
-        self.pool1 = nn.MaxPool2d(2, stride=2, ceil_mode=True)
+        self.rebnconv1 = ReluBatchNormConv(out_channels, mid_ch, dirate=1)
+        self.pool1 = nn.MaxPool2d(kernel_size=2, stride=2, ceil_mode=True)
 
-        self.rebnconv2 = REBNCONV(mid_ch, mid_ch, dirate=1)
-        self.pool2 = nn.MaxPool2d(2, stride=2, ceil_mode=True)
+        self.rebnconv2 = ReluBatchNormConv(mid_ch, mid_ch, dirate=1)
+        self.pool2 = nn.MaxPool2d(kernel_size=2, stride=2, ceil_mode=True)
 
-        self.rebnconv3 = REBNCONV(mid_ch, mid_ch, dirate=1)
+        self.rebnconv3 = ReluBatchNormConv(mid_ch, mid_ch, dirate=1)
 
-        self.rebnconv4 = REBNCONV(mid_ch, mid_ch, dirate=2)
+        self.rebnconv4 = ReluBatchNormConv(mid_ch, mid_ch, dirate=2)
 
-        self.rebnconv3d = REBNCONV(mid_ch * 2, mid_ch, dirate=1)
-        self.rebnconv2d = REBNCONV(mid_ch * 2, mid_ch, dirate=1)
-        self.rebnconv1d = REBNCONV(mid_ch * 2, out_ch, dirate=1)
+        self.rebnconv3d = ReluBatchNormConv(mid_ch * 2, mid_ch, dirate=1)
+        self.rebnconv2d = ReluBatchNormConv(mid_ch * 2, mid_ch, dirate=1)
+        self.rebnconv1d = ReluBatchNormConv(mid_ch * 2, out_channels, dirate=1)
 
     def forward(self, x):
 
@@ -308,20 +311,20 @@ class RSU4(nn.Module):
 
 class RSU4F(nn.Module):
 
-    def __init__(self, in_ch=4, mid_ch=12, out_ch=3):
+    def __init__(self, in_channels=4, mid_channels=12, out_channels=4):
         super(RSU4F, self).__init__()
 
-        self.rebnconvin = REBNCONV(in_ch, out_ch, dirate=1)
+        self.rebnconvin = ReluBatchNormConv(in_channels, out_channels, dirate=1)
 
-        self.rebnconv1 = REBNCONV(out_ch, mid_ch, dirate=1)
-        self.rebnconv2 = REBNCONV(mid_ch, mid_ch, dirate=2)
-        self.rebnconv3 = REBNCONV(mid_ch, mid_ch, dirate=4)
+        self.rebnconv1 = ReluBatchNormConv(out_channels, mid_channels, dirate=1)
 
-        self.rebnconv4 = REBNCONV(mid_ch, mid_ch, dirate=8)
+        self.rebnconv2 = ReluBatchNormConv(mid_channels, mid_channels, dirate=2)
+        self.rebnconv3 = ReluBatchNormConv(mid_channels, mid_channels, dirate=4)
+        self.rebnconv4 = ReluBatchNormConv(mid_channels, mid_channels, dirate=8)
 
-        self.rebnconv3d = REBNCONV(mid_ch * 2, mid_ch, dirate=4)
-        self.rebnconv2d = REBNCONV(mid_ch * 2, mid_ch, dirate=2)
-        self.rebnconv1d = REBNCONV(mid_ch * 2, out_ch, dirate=1)
+        self.rebnconv3d = ReluBatchNormConv(mid_channels * 2, mid_channels, dirate=4)
+        self.rebnconv2d = ReluBatchNormConv(mid_channels * 2, mid_channels, dirate=2)
+        self.rebnconv1d = ReluBatchNormConv(mid_channels * 2, out_channels, dirate=1)
 
     def forward(self, x):
 
@@ -344,26 +347,28 @@ class RSU4F(nn.Module):
 
 class ORMBGTeacher(nn.Module):
 
-    def __init__(self, in_ch=4, out_ch=1):
+    def __init__(self, in_channels=4, out_channels=1):
         super(ORMBGTeacher, self).__init__()
 
-        self.conv_in = nn.Conv2d(in_ch, 64, 3, stride=2, padding=1)
-        self.pool_in = nn.MaxPool2d(2, stride=2, ceil_mode=True)
+        self.conv_in = nn.Conv2d(
+            in_channels=in_channels, out_channels=64, kernel_size=3, stride=2, padding=1
+        )
+        self.pool_in = nn.MaxPool2d(kernel_size=2, stride=2, ceil_mode=True)
 
         self.stage1 = RSU7(64, 32, 64)
-        self.pool12 = nn.MaxPool2d(2, stride=2, ceil_mode=True)
+        self.pool12 = nn.MaxPool2d(kernel_size=2, stride=2, ceil_mode=True)
 
         self.stage2 = RSU6(64, 32, 128)
-        self.pool23 = nn.MaxPool2d(2, stride=2, ceil_mode=True)
+        self.pool23 = nn.MaxPool2d(kernel_size=2, stride=2, ceil_mode=True)
 
         self.stage3 = RSU5(128, 64, 256)
-        self.pool34 = nn.MaxPool2d(2, stride=2, ceil_mode=True)
+        self.pool34 = nn.MaxPool2d(kernel_size=2, stride=2, ceil_mode=True)
 
         self.stage4 = RSU4(256, 128, 512)
-        self.pool45 = nn.MaxPool2d(2, stride=2, ceil_mode=True)
+        self.pool45 = nn.MaxPool2d(kernel_size=2, stride=2, ceil_mode=True)
 
         self.stage5 = RSU4F(512, 256, 512)
-        self.pool56 = nn.MaxPool2d(2, stride=2, ceil_mode=True)
+        self.pool56 = nn.MaxPool2d(kernel_size=2, stride=2, ceil_mode=True)
 
         self.stage6 = RSU4F(512, 256, 512)
 
@@ -374,12 +379,24 @@ class ORMBGTeacher(nn.Module):
         self.stage2d = RSU6(256, 32, 64)
         self.stage1d = RSU7(128, 16, 64)
 
-        self.side1 = nn.Conv2d(64, out_ch, 3, padding=1)
-        self.side2 = nn.Conv2d(64, out_ch, 3, padding=1)
-        self.side3 = nn.Conv2d(128, out_ch, 3, padding=1)
-        self.side4 = nn.Conv2d(256, out_ch, 3, padding=1)
-        self.side5 = nn.Conv2d(512, out_ch, 3, padding=1)
-        self.side6 = nn.Conv2d(512, out_ch, 3, padding=1)
+        self.side1 = nn.Conv2d(
+            in_channels=64, out_channels=out_channels, kernel_size=3, padding=1
+        )
+        self.side2 = nn.Conv2d(
+            in_channels=64, out_channels=out_channels, kernel_size=3, padding=1
+        )
+        self.side3 = nn.Conv2d(
+            in_channels=128, out_channels=out_channels, kernel_size=3, padding=1
+        )
+        self.side4 = nn.Conv2d(
+            in_channels=256, out_channels=out_channels, kernel_size=3, padding=1
+        )
+        self.side5 = nn.Conv2d(
+            in_channels=512, out_channels=out_channels, kernel_size=3, padding=1
+        )
+        self.side6 = nn.Conv2d(
+            in_channels=512, out_channels=out_channels, kernel_size=3, padding=1
+        )
 
     def compute_loss(self, preds, targets):
         return muti_loss_fusion(preds, targets)
