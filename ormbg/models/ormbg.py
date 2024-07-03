@@ -357,6 +357,26 @@ class myrebnconv(nn.Module):
         return self.rl(self.bn(self.conv(x)))
 
 
+bce_loss = nn.BCELoss(size_average=True)
+
+
+def muti_loss_fusion(preds, target):
+    loss0 = 0.0
+    loss = 0.0
+
+    for i in range(0, len(preds)):
+        if preds[i].shape[2] != target.shape[2] or preds[i].shape[3] != target.shape[3]:
+            tmp_target = F.interpolate(
+                target, size=preds[i].size()[2:], mode="bilinear", align_corners=True
+            )
+            loss = loss + bce_loss(preds[i], tmp_target)
+        else:
+            loss = loss + bce_loss(preds[i], target)
+        if i == 0:
+            loss0 = loss
+    return loss0, loss
+
+
 class ORMBG(nn.Module):
 
     def __init__(self, in_ch=3, out_ch=1):
@@ -397,6 +417,9 @@ class ORMBG(nn.Module):
         self.side6 = nn.Conv2d(512, out_ch, 3, padding=1)
 
         # self.outconv = nn.Conv2d(6*out_ch,out_ch,1)
+
+    def compute_loss(self, preds, targets):
+        return muti_loss_fusion(preds, targets)
 
     def forward(self, x):
 
