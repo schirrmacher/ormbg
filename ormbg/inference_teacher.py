@@ -4,13 +4,19 @@ import argparse
 import numpy as np
 from PIL import Image
 from skimage import io
-from models.ormbg import ORMBG
+from models.ormbg_teacher import ORMBGTeacher
 import torch.nn.functional as F
 
 
 def parse_args():
     parser = argparse.ArgumentParser(
         description="Remove background from images using ORMBG model."
+    )
+    parser.add_argument(
+        "--depth",
+        type=str,
+        default=os.path.join("examples", "merged", "image01.png"),
+        help="Path to the input image file.",
     )
     parser.add_argument(
         "--image",
@@ -55,11 +61,12 @@ def postprocess_image(result: torch.Tensor, im_size: list) -> np.ndarray:
 
 
 def inference(args):
+    depth_image_path = args.depth
     image_path = args.image
     result_name = args.output
     model_path = args.model_path
 
-    net = ORMBG()
+    net = ORMBGTeacher()
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     if torch.cuda.is_available():
@@ -70,7 +77,7 @@ def inference(args):
     net.eval()
 
     model_input_size = [1024, 1024]
-    orig_im = io.imread(image_path)
+    orig_im = io.imread(depth_image_path)
     orig_im_size = orig_im.shape[0:2]
     image = preprocess_image(orig_im, model_input_size).to(device)
 
