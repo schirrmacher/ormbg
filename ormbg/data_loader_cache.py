@@ -4,6 +4,7 @@
 ## for his helps in implementing cache machanism of our DIS dataloader.
 from __future__ import print_function, division
 
+import albumentations as A
 import numpy as np
 import random
 from copy import deepcopy
@@ -205,6 +206,58 @@ def gt_preprocess(gt, size):
 
     return gt_tensor.type(torch.uint8), gt.shape[0:2]
     # return gt_tensor, gt.shape[0:2]
+
+
+class GOSGridDropout(object):
+    def __init__(
+        self,
+        ratio=0.5,
+        unit_size_min=100,
+        unit_size_max=100,
+        holes_number_x=None,
+        holes_number_y=None,
+        shift_x=0,
+        shift_y=0,
+        random_offset=True,
+        fill_value=0,
+        mask_fill_value=None,
+        always_apply=None,
+        p=1.0,
+    ):
+        self.transform = A.GridDropout(
+            ratio=ratio,
+            unit_size_min=unit_size_min,
+            unit_size_max=unit_size_max,
+            holes_number_x=holes_number_x,
+            holes_number_y=holes_number_y,
+            shift_x=shift_x,
+            shift_y=shift_y,
+            random_offset=random_offset,
+            fill_value=fill_value,
+            mask_fill_value=mask_fill_value,
+            always_apply=always_apply,
+            p=p,
+        )
+
+    def __call__(self, sample):
+        imidx, image, label, shape = (
+            sample["imidx"],
+            sample["image"],
+            sample["label"],
+            sample["shape"],
+        )
+
+        # Convert the torch tensors to numpy arrays
+        image_np = image.permute(1, 2, 0).numpy()
+        label_np = label.permute(1, 2, 0).numpy()
+
+        augmented = self.transform(image=image_np, mask=label_np)
+
+        # Convert the numpy arrays back to torch tensors
+        image = torch.tensor(augmented["image"]).permute(2, 0, 1)
+        label = torch.tensor(augmented["mask"]).permute(2, 0, 1)
+
+        return {"imidx": imidx, "image": image, "label": label, "shape": shape}
 
 
 class GOSRandomHFlip(object):
