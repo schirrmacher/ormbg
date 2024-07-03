@@ -249,13 +249,11 @@ class GOSGridDropout(object):
 
         # Convert the torch tensors to numpy arrays
         image_np = image.permute(1, 2, 0).numpy()
-        label_np = label.permute(1, 2, 0).numpy()
 
-        augmented = self.transform(image=image_np, mask=label_np)
+        augmented = self.transform(image=image_np)
 
         # Convert the numpy arrays back to torch tensors
         image = torch.tensor(augmented["image"]).permute(2, 0, 1)
-        label = torch.tensor(augmented["mask"]).permute(2, 0, 1)
 
         return {"imidx": imidx, "image": image, "label": label, "shape": shape}
 
