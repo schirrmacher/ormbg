@@ -40,40 +40,21 @@ def get_im_gt_name_dict(datasets, flag="valid"):
         )
         tmp_im_list, tmp_gt_list = [], []
         im_dir = datasets[i]["im_dir"]
-        im_ext = datasets[i]["im_ext"]
-        tmp_im_list = glob(os.path.join(im_dir, "*" + im_ext))
+        gt_dir = datasets[i]["gt_dir"]
+        tmp_im_list = glob(os.path.join(im_dir, "*" + "*.[jp][pn]g"))
+        tmp_gt_list = glob(os.path.join(gt_dir, "*" + "*.[jp][pn]g"))
 
-        # img_name_dict[im_dirs[i][0]] = tmp_im_list
         print(
             "-im-", datasets[i]["name"], datasets[i]["im_dir"], ": ", len(tmp_im_list)
         )
 
-        if datasets[i]["gt_dir"] == "":
-            print(
-                "-gt-",
-                datasets[i]["name"],
-                datasets[i]["gt_dir"],
-                ": ",
-                "No Ground Truth Found",
-            )
-            tmp_gt_list = []
-        else:
-            tmp_gt_list = [
-                datasets[i]["gt_dir"]
-                + os.sep
-                + x.split(os.sep)[-1].split(datasets[i]["im_ext"])[0]
-                + datasets[i]["gt_ext"]
-                for x in tmp_im_list
-            ]
-
-            # lbl_name_dict[im_dirs[i][0]] = tmp_gt_list
-            print(
-                "-gt-",
-                datasets[i]["name"],
-                datasets[i]["gt_dir"],
-                ": ",
-                len(tmp_gt_list),
-            )
+        print(
+            "-gt-",
+            datasets[i]["name"],
+            datasets[i]["gt_dir"],
+            ": ",
+            len(tmp_gt_list),
+        )
 
         if flag == "train":  ## combine multiple training sets into one dataset
             if len(name_im_gt_list) == 0:
