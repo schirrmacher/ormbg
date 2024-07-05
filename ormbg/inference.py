@@ -30,6 +30,11 @@ def parse_args():
         default=os.path.join("models", "ormbg.pth"),
         help="Path to the model file.",
     )
+    parser.add_argument(
+        "--compare",
+        action="store_false",
+        help="Flag to save the original and processed images side by side.",
+    )
     return parser.parse_args()
 
 
@@ -58,6 +63,7 @@ def inference(args):
     image_path = args.image
     result_name = args.output
     model_path = args.model_path
+    compare = args.compare
 
     net = ORMBG()
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -83,13 +89,21 @@ def inference(args):
     pil_im = Image.fromarray(result_image)
 
     if pil_im.mode == "RGBA":
-        print("RGBA given")
         pil_im = pil_im.convert("RGB")
 
     no_bg_image = Image.new("RGBA", pil_im.size, (0, 0, 0, 0))
     orig_image = Image.open(image_path)
     no_bg_image.paste(orig_image, mask=pil_im)
-    no_bg_image.save(result_name)
+
+    if compare:
+        combined_width = orig_image.width + no_bg_image.width
+        combined_image = Image.new("RGBA", (combined_width, orig_image.height))
+        combined_image.paste(orig_image, (0, 0))
+        combined_image.paste(no_bg_image, (orig_image.width, 0))
+        stacked_output_path = os.path.splitext(result_name)[0] + ".png"
+        combined_image.save(stacked_output_path)
+    else:
+        no_bg_image.save(result_name)
 
 
 if __name__ == "__main__":

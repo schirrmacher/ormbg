@@ -17,7 +17,7 @@ datasets:
 
 Join our [Research Discord Group](https://discord.gg/YYZ3D66t)!
 
-![](examples.jpg)
+![](examples/image/image01_no_background.png)
 
 This model is a **fully open-source background remover** optimized for images with humans. It is based on [Highly Accurate Dichotomous Image Segmentation research](https://github.com/xuebinqin/DIS). The model was trained with the synthetic [Human Segmentation Dataset](https://huggingface.co/datasets/schirrmacher/humans), [P3M-10k](https://paperswithcode.com/dataset/p3m-10k) and [AIM-500](https://paperswithcode.com/dataset/aim-500).
 
