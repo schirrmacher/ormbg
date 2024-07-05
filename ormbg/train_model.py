@@ -22,6 +22,141 @@ from data_loader_cache import (
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
 
+def valid(net, valid_dataloaders, valid_datasets, hypar, epoch=0):
+    net.eval()
+    print("Validating...")
+    epoch_num = hypar["max_epoch_num"]
+
+    val_loss = 0.0
+    tar_loss = 0.0
+    val_cnt = 0.0
+
+    tmp_f1 = []
+    tmp_mae = []
+    tmp_time = []
+
+    start_valid = time.time()
+
+    for k in range(len(valid_dataloaders)):
+
+        valid_dataloader = valid_dataloaders[k]
+        valid_dataset = valid_datasets[k]
+
+        val_num = valid_dataset.__len__()
+        mybins = np.arange(0, 256)
+        PRE = np.zeros((val_num, len(mybins) - 1))
+        REC = np.zeros((val_num, len(mybins) - 1))
+        F1 = np.zeros((val_num, len(mybins) - 1))
+        MAE = np.zeros((val_num))
+
+        for i_val, data_val in enumerate(valid_dataloader):
+            val_cnt = val_cnt + 1.0
+            imidx_val, inputs_val, labels_val, shapes_val = (
+                data_val["imidx"],
+                data_val["image"],
+                data_val["label"],
+                data_val["shape"],
+            )
+
+            if hypar["model_digit"] == "full":
+                inputs_val = inputs_val.type(torch.FloatTensor)
+                labels_val = labels_val.type(torch.FloatTensor)
+            else:
+                inputs_val = inputs_val.type(torch.HalfTensor)
+                labels_val = labels_val.type(torch.HalfTensor)
+
+            # wrap them in Variable
+            if torch.cuda.is_available():
+                inputs_val_v, labels_val_v = Variable(
+                    inputs_val.cuda(), requires_grad=False
+                ), Variable(labels_val.cuda(), requires_grad=False)
+            else:
+                inputs_val_v, labels_val_v = Variable(
+                    inputs_val, requires_grad=False
+                ), Variable(labels_val, requires_grad=False)
+
+            t_start = time.time()
+            ds_val = net(inputs_val_v)[0]
+            t_end = time.time() - t_start
+            tmp_time.append(t_end)
+
+            # loss2_val, loss_val = muti_loss_fusion(ds_val, labels_val_v)
+            loss2_val, loss_val = net.compute_loss(ds_val, labels_val_v)
+
+            # compute F measure
+            for t in range(hypar["batch_size_valid"]):
+                i_test = imidx_val[t].data.numpy()
+
+                pred_val = ds_val[0][t, :, :, :]  # B x 1 x H x W
+
+                ## recover the prediction spatial size to the orignal image size
+                pred_val = torch.squeeze(
+                    F.upsample(
+                        torch.unsqueeze(pred_val, 0),
+                        (shapes_val[t][0], shapes_val[t][1]),
+                        mode="bilinear",
+                    )
+                )
+
+                # pred_val = normPRED(pred_val)
+                ma = torch.max(pred_val)
+                mi = torch.min(pred_val)
+                pred_val = (pred_val - mi) / (ma - mi)  # max = 1
+
+                if len(valid_dataset.dataset["ori_gt_path"]) != 0:
+                    gt = np.squeeze(
+                        io.imread(valid_dataset.dataset["ori_gt_path"][i_test])
+                    )  # max = 255
+                    if gt.max() == 1:
+                        gt = gt * 255
+                else:
+                    gt = np.zeros((shapes_val[t][0], shapes_val[t][1]))
+                with torch.no_grad():
+                    gt = torch.tensor(gt).to(device)
+
+                pre, rec, f1, mae = f1_mae_torch(
+                    pred_val * 255, gt, valid_dataset, i_test, mybins, hypar
+                )
+
+                PRE[i_test, :] = pre
+                REC[i_test, :] = rec
+                F1[i_test, :] = f1
+                MAE[i_test] = mae
+
+                del ds_val, gt
+                gc.collect()
+                torch.cuda.empty_cache()
+
+            # if(loss_val.data[0]>1):
+            val_loss += loss_val.item()  # data[0]
+            tar_loss += loss2_val.item()  # data[0]
+
+            print(
+                "[validating: %5d/%5d] val_ls:%f, tar_ls: %f, f1: %f, mae: %f, time: %f"
+                % (
+                    i_val,
+                    val_num,
+                    val_loss / (i_val + 1),
+                    tar_loss / (i_val + 1),
+                    np.amax(F1[i_test, :]),
+                    MAE[i_test],
+                    t_end,
+                )
+            )
+
+            del loss2_val, loss_val
+
+        print("============================")
+        PRE_m = np.mean(PRE, 0)
+        REC_m = np.mean(REC, 0)
+        f1_m = (1 + 0.3) * PRE_m * REC_m / (0.3 * PRE_m + REC_m + 1e-8)
+
+        tmp_f1.append(np.amax(f1_m))
+        tmp_mae.append(np.mean(MAE))
+
+    return tmp_f1, tmp_mae, val_loss, tar_loss, i_val, tmp_time
+
+
 def train(
     net,
     optimizer,
