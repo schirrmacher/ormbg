@@ -38,7 +38,7 @@ conda env create -f environment.yaml
 conda activate ormbg
 ```
 
-Replace dummy dataset with (training dataset)[https://huggingface.co/datasets/schirrmacher/humans].
+Replace dummy dataset with [training dataset](https://huggingface.co/datasets/schirrmacher/humans).
 
 ```
 python3 ormbg/train_model.py
