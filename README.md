@@ -26,7 +26,7 @@ This model is similar to [RMBG-1.4](https://huggingface.co/briaai/RMBG-1.4), but
 ## Inference
 
 ```
-python utils/inference.py
+python ormbg/inference.py
 ```
 
 ## Training
