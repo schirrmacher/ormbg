@@ -3,8 +3,7 @@ import torch
 import argparse
 import numpy as np
 from skimage import io
-import skimage.transform as transform
-from models.ormbg import ORMBG
+from ormbg.models.ormbg import ORMBG
 import torch.nn.functional as F
 
 
