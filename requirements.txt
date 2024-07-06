@@ -1,0 +1,10 @@
+gradio
+gradio_imageslider
+torch
+torchvision
+scikit-image
+pillow
+numpy
+typing
+gitpython
+huggingface_hub

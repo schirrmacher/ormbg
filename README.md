@@ -1,4 +1,5 @@
 ---
+title: Open Remove Background Model (ormbg)
 license: apache-2.0
 tags:
   - segmentation
@@ -9,6 +10,13 @@ tags:
 pretty_name: Open Remove Background Model
 datasets:
   - schirrmacher/humans
+emoji: 💻
+colorFrom: red
+colorTo: red
+sdk: gradio
+sdk_version: 4.29.0
+app_file: app.py
+pinned: false
 ---
 
 # Open Remove Background Model (ormbg)
