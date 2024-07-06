@@ -1,4 +1,8 @@
+# Must be at the top:
+#  Make sure that is the first thing you import, as otherwise the import of third-party packages installed in the blender environment will fail.
 import blenderproc as bproc
+from blenderproc.python.renderer import RendererUtility
+
 import os
 import random
 import argparse
@@ -13,7 +17,9 @@ def normalize_value(value, min_value, max_value):
     return (value - min_value) / (max_value - min_value)
 
 
-def main(scene: str, output_dir: str, width: int, height: int, iterations: int) -> None:
+def main(
+    scene: str, output_dir: str, width: int, height: int, iterations: int, samples: int
+) -> None:
     os.environ["OPENCV_IO_ENABLE_OPENEXR"] = "1"
 
     bproc.init()
@@ -83,10 +89,9 @@ def main(scene: str, output_dir: str, width: int, height: int, iterations: int) 
             location, rotation_matrix
         )
         bproc.camera.add_camera_pose(cam2world_matrix)
-        print(
-            bproc.camera.scene_coverage_score(cam2world_matrix, special_objects=targets)
-        )
 
+    RendererUtility.render_init()
+    RendererUtility.set_max_amount_of_samples(samples)
     bproc.renderer.set_output_format(enable_transparency=True)
     data = bproc.renderer.render()
     bproc.writer.write_hdf5(output_dir, data)
@@ -124,6 +129,19 @@ if __name__ == "__main__":
         default=10,
         help="Number of iterations for rendering",
     )
+    parser.add_argument(
+        "--samples",
+        type=int,
+        default=100,
+        help="Number of iterations for rendering",
+    )
     args = parser.parse_args()
 
-    main(args.scene, args.output_dir, args.width, args.height, args.iterations)
+    main(
+        args.scene,
+        args.output_dir,
+        args.width,
+        args.height,
+        args.iterations,
+        args.samples,
+    )

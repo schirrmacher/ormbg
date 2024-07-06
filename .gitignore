@@ -157,3 +157,4 @@ dmypy.json
 cython_debug/
 
 models/*
+blender/*
