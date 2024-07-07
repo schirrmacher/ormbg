@@ -18,7 +18,14 @@ def normalize_value(value, min_value, max_value):
 
 
 def main(
-    scene: str, output_dir: str, width: int, height: int, iterations: int, samples: int
+    scene: str,
+    output_dir: str,
+    width: int,
+    height: int,
+    iterations: int,
+    samples: int,
+    min_distance: float,
+    max_distance: float,
 ) -> None:
     os.environ["OPENCV_IO_ENABLE_OPENEXR"] = "1"
 
@@ -73,9 +80,6 @@ def main(
     light.set_energy(500)
 
     for _ in range(iterations):
-        min_distance = 1.0
-        max_distance = 4.0
-
         location = bproc.sampler.shell(
             center=[0, 0, random.uniform(1, 2)],
             radius_min=min_distance,
@@ -146,6 +150,23 @@ if __name__ == "__main__":
         default=100,
         help="Number of iterations for rendering",
     )
+
+    parser.add_argument(
+        "--min_distance",
+        "-mind",
+        type=float,
+        default=2.0,
+        help="Minimum distance for the camera",
+    )
+
+    parser.add_argument(
+        "--max_distance",
+        "-maxd",
+        type=float,
+        default=4.0,
+        help="Maximum distance for the camera",
+    )
+
     args = parser.parse_args()
 
     main(
@@ -155,4 +176,6 @@ if __name__ == "__main__":
         args.height,
         args.iterations,
         args.samples,
+        args.min_distance,
+        args.max_distance,
     )
