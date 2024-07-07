@@ -26,6 +26,7 @@ def main(
     samples: int,
     min_distance: float,
     max_distance: float,
+    lights: int,
 ) -> None:
     os.environ["OPENCV_IO_ENABLE_OPENEXR"] = "1"
 
@@ -66,18 +67,8 @@ def main(
 
     poi = bproc.object.compute_poi(targets) + [0, 0, -0.5]
 
-    light = bproc.types.Light()
-    light.set_type("POINT")
-    light.set_location(
-        bproc.sampler.shell(
-            center=[1, 2, 3],
-            radius_min=4,
-            radius_max=7,
-            elevation_min=15,
-            elevation_max=70,
-        )
-    )
-    light.set_energy(500)
+    for _ in range(lights):
+        create_light()
 
     for _ in range(iterations):
         location = bproc.sampler.shell(
@@ -98,6 +89,21 @@ def main(
     bproc.renderer.set_output_format(enable_transparency=True)
     data = bproc.renderer.render()
     bproc.writer.write_hdf5(output_dir, data)
+
+
+def create_light():
+    light = bproc.types.Light()
+    light.set_type("POINT")
+    light.set_location(
+        bproc.sampler.shell(
+            center=[1, 2, 3],
+            radius_min=1,
+            radius_max=5,
+            elevation_min=15,
+            elevation_max=70,
+        )
+    )
+    light.set_energy(1000)
 
 
 if __name__ == "__main__":
@@ -167,6 +173,14 @@ if __name__ == "__main__":
         help="Maximum distance for the camera",
     )
 
+    parser.add_argument(
+        "--lights",
+        "-l",
+        type=int,
+        default=2,
+        help="Number of light sources",
+    )
+
     args = parser.parse_args()
 
     main(
@@ -178,4 +192,5 @@ if __name__ == "__main__":
         args.samples,
         args.min_distance,
         args.max_distance,
+        args.lights,
     )
