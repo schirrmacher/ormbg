@@ -23,6 +23,8 @@ def main(
     os.environ["OPENCV_IO_ENABLE_OPENEXR"] = "1"
 
     bproc.init()
+    RendererUtility.render_init()
+    RendererUtility.set_max_amount_of_samples(samples)
 
     # Load the objects into the scene
     objects = bproc.loader.load_blend(
@@ -57,21 +59,20 @@ def main(
 
     poi = bproc.object.compute_poi(targets) + [0, 0, -0.5]
 
-    for _ in range(iterations):
-        # Define a light and set its location and energy level
-        light = bproc.types.Light()
-        light.set_type("POINT")
-        light.set_location(
-            bproc.sampler.shell(
-                center=[1, 2, 3],
-                radius_min=4,
-                radius_max=7,
-                elevation_min=15,
-                elevation_max=70,
-            )
+    light = bproc.types.Light()
+    light.set_type("POINT")
+    light.set_location(
+        bproc.sampler.shell(
+            center=[1, 2, 3],
+            radius_min=4,
+            radius_max=7,
+            elevation_min=15,
+            elevation_max=70,
         )
-        light.set_energy(500)
+    )
+    light.set_energy(500)
 
+    for _ in range(iterations):
         min_distance = 1.0
         max_distance = 4.0
 
@@ -90,8 +91,6 @@ def main(
         )
         bproc.camera.add_camera_pose(cam2world_matrix)
 
-    RendererUtility.render_init()
-    RendererUtility.set_max_amount_of_samples(samples)
     bproc.renderer.set_output_format(enable_transparency=True)
     data = bproc.renderer.render()
     bproc.writer.write_hdf5(output_dir, data)
@@ -99,38 +98,50 @@ def main(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
+
     parser.add_argument(
         "--scene",
+        "-s",
         nargs="?",
         default="blender/man.blend",
         help="Path to the scene.obj file",
     )
+
     parser.add_argument(
         "--output_dir",
+        "-o",
         nargs="?",
         default="hdf5",
         help="Path to where the final files will be saved",
     )
+
     parser.add_argument(
         "--width",
+        "-wt",
         type=int,
         default=256,
         help="Width of the camera resolution",
     )
+
     parser.add_argument(
         "--height",
+        "-ht",
         type=int,
         default=256,
         help="Height of the camera resolution",
     )
+
     parser.add_argument(
         "--iterations",
+        "-i",
         type=int,
         default=10,
         help="Number of iterations for rendering",
     )
+
     parser.add_argument(
         "--samples",
+        "-n",
         type=int,
         default=100,
         help="Number of iterations for rendering",
