@@ -71,18 +71,27 @@ def main(
         create_light()
 
     for _ in range(iterations):
+        frontal = bool(random.getrandbits(1))
+        start_angle = 45 if frontal else -135
+        end_angle = 135 if frontal else -45
         location = bproc.sampler.shell(
             center=[0, 0, random.uniform(1, 2)],
             radius_min=min_distance,
             radius_max=max_distance,
-            elevation_min=-30,
-            elevation_max=30,
+            elevation_min=-20,
+            elevation_max=20,
+            azimuth_min=start_angle,
+            azimuth_max=end_angle,
         )
 
         rotation_matrix = bproc.camera.rotation_from_forward_vec(poi - location)
 
         cam2world_matrix = bproc.math.build_transformation_mat(
             location, rotation_matrix
+        )
+
+        print(
+            f"{bproc.camera.scene_coverage_score(cam2world_matrix, special_objects=targets)}, {bproc.camera.scene_coverage_score(cam2world_matrix)}, {len(bproc.camera.visible_objects(cam2world_matrix))}"
         )
         bproc.camera.add_camera_pose(cam2world_matrix)
 
@@ -169,7 +178,7 @@ if __name__ == "__main__":
         "--max_distance",
         "-maxd",
         type=float,
-        default=4.0,
+        default=4.5,
         help="Maximum distance for the camera",
     )
 
