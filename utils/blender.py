@@ -6,15 +6,6 @@ from blenderproc.python.renderer import RendererUtility
 import os
 import random
 import argparse
-import numpy as np
-
-
-def compute_distance(point1, point2):
-    return np.linalg.norm(np.array(point1) - np.array(point2))
-
-
-def normalize_value(value, min_value, max_value):
-    return (value - min_value) / (max_value - min_value)
 
 
 def main(
@@ -26,7 +17,7 @@ def main(
     samples: int,
     min_distance: float,
     max_distance: float,
-    lights: int,
+    camera_mode: str,
 ) -> None:
     os.environ["OPENCV_IO_ENABLE_OPENEXR"] = "1"
 
@@ -34,7 +25,6 @@ def main(
     RendererUtility.render_init()
     RendererUtility.set_max_amount_of_samples(samples)
 
-    # Load the objects into the scene
     objects = bproc.loader.load_blend(
         scene,
         obj_types=[
@@ -53,7 +43,6 @@ def main(
         ],
     )
 
-    # Define the camera intrinsics
     bproc.camera.set_resolution(width, height)
 
     target_names = ["target"]
@@ -67,13 +56,21 @@ def main(
 
     poi = bproc.object.compute_poi(targets) + [0, 0, -0.5]
 
-    for _ in range(lights):
-        create_light()
+    create_light([5, -5, 5])
+    create_light([2, random.uniform(1, 5), random.uniform(1, 3)])
 
     for _ in range(iterations):
-        frontal = bool(random.getrandbits(1))
-        start_angle = 45 if frontal else -135
-        end_angle = 135 if frontal else -45
+        if camera_mode == "frontal":
+            start_angle = -135
+            end_angle = -45
+        elif camera_mode == "back":
+            start_angle = 45
+            end_angle = 135
+        elif camera_mode == "frontal_and_back":
+            random_bool = bool(random.getrandbits(1))
+            start_angle = -135 if random_bool else 45
+            end_angle = -45 if random_bool else 135
+
         location = bproc.sampler.shell(
             center=[0, 0, random.uniform(1, 2)],
             radius_min=min_distance,
@@ -85,13 +82,8 @@ def main(
         )
 
         rotation_matrix = bproc.camera.rotation_from_forward_vec(poi - location)
-
         cam2world_matrix = bproc.math.build_transformation_mat(
             location, rotation_matrix
-        )
-
-        print(
-            f"{bproc.camera.scene_coverage_score(cam2world_matrix, special_objects=targets)}, {bproc.camera.scene_coverage_score(cam2world_matrix)}, {len(bproc.camera.visible_objects(cam2world_matrix))}"
         )
         bproc.camera.add_camera_pose(cam2world_matrix)
 
@@ -100,18 +92,10 @@ def main(
     bproc.writer.write_hdf5(output_dir, data)
 
 
-def create_light():
+def create_light(location):
     light = bproc.types.Light()
     light.set_type("POINT")
-    light.set_location(
-        bproc.sampler.shell(
-            center=[1, 2, 3],
-            radius_min=1,
-            radius_max=5,
-            elevation_min=15,
-            elevation_max=70,
-        )
-    )
+    light.set_location(location)
     light.set_energy(1000)
 
 
@@ -183,11 +167,12 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "--lights",
-        "-l",
-        type=int,
-        default=2,
-        help="Number of light sources",
+        "--camera_mode",
+        "-cm",
+        type=str,
+        default="frontal_and_back",
+        choices=["frontal", "back", "frontal_and_back"],
+        help="Mode of camera positioning: 'frontal', 'back', or 'frontal_and_back'",
     )
 
     args = parser.parse_args()
@@ -201,5 +186,5 @@ if __name__ == "__main__":
         args.samples,
         args.min_distance,
         args.max_distance,
-        args.lights,
+        args.camera_mode,
     )
