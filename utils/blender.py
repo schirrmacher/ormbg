@@ -18,6 +18,7 @@ def main(
     min_distance: float,
     max_distance: float,
     camera_mode: str,
+    lights_count: int,
 ) -> None:
     os.environ["OPENCV_IO_ENABLE_OPENEXR"] = "1"
 
@@ -56,10 +57,15 @@ def main(
 
     poi = bproc.object.compute_poi(targets) + [0, 0, -0.5]
 
-    create_light([5, -5, 5])
-    create_light([2, random.uniform(1, 5), random.uniform(1, 3)])
+    lights = []
+    for _ in range(lights_count):
+        lights.append(create_random_light())
 
-    for _ in range(iterations):
+    for i in range(iterations):
+
+        for light in lights:
+            light.set_location(random_light_location())
+
         if camera_mode == "frontal":
             start_angle = -135
             end_angle = -45
@@ -86,17 +92,32 @@ def main(
             location, rotation_matrix
         )
         bproc.camera.add_camera_pose(cam2world_matrix)
+        bproc.renderer.set_output_format(enable_transparency=True)
+        data = bproc.renderer.render()
+        bproc.writer.write_hdf5(output_dir, data, append_to_existing_output=True)
+        bproc.utility.reset_keyframes()
+        print(i)
 
-    bproc.renderer.set_output_format(enable_transparency=True)
-    data = bproc.renderer.render()
-    bproc.writer.write_hdf5(output_dir, data)
 
-
-def create_light(location):
+def create_random_light():
     light = bproc.types.Light()
     light.set_type("POINT")
-    light.set_location(location)
-    light.set_energy(1000)
+    light_location = random_light_location()
+    light.set_location(light_location)
+    light.set_energy(random.uniform(300, 500))
+    return light
+
+
+def random_light_location():
+    location = bproc.sampler.shell(
+        center=[0, random.uniform(0, 2), 2],
+        radius_min=3,
+        radius_max=3.5,
+        elevation_min=-30,
+        elevation_max=30,
+    )
+    print(f"Light location: {location}")
+    return location
 
 
 if __name__ == "__main__":
@@ -120,7 +141,7 @@ if __name__ == "__main__":
 
     parser.add_argument(
         "--width",
-        "-wt",
+        "-w",
         type=int,
         default=256,
         help="Width of the camera resolution",
@@ -152,7 +173,7 @@ if __name__ == "__main__":
 
     parser.add_argument(
         "--min_distance",
-        "-mind",
+        "-min",
         type=float,
         default=2.0,
         help="Minimum distance for the camera",
@@ -160,7 +181,7 @@ if __name__ == "__main__":
 
     parser.add_argument(
         "--max_distance",
-        "-maxd",
+        "-max",
         type=float,
         default=4.5,
         help="Maximum distance for the camera",
@@ -168,11 +189,19 @@ if __name__ == "__main__":
 
     parser.add_argument(
         "--camera_mode",
-        "-cm",
+        "-c",
         type=str,
         default="frontal_and_back",
         choices=["frontal", "back", "frontal_and_back"],
         help="Mode of camera positioning: 'frontal', 'back', or 'frontal_and_back'",
+    )
+
+    parser.add_argument(
+        "--lights",
+        "-l",
+        type=int,
+        default=2,
+        help="Number of light sources randomly placed",
     )
 
     args = parser.parse_args()
@@ -187,4 +216,5 @@ if __name__ == "__main__":
         args.min_distance,
         args.max_distance,
         args.camera_mode,
+        args.lights,
     )
