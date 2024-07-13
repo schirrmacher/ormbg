@@ -5,6 +5,7 @@
 from __future__ import print_function, division
 
 import albumentations as A
+
 import numpy as np
 import random
 from copy import deepcopy
@@ -16,7 +17,7 @@ from glob import glob
 
 import torch
 from torch.utils.data import Dataset, DataLoader
-from torchvision import transforms
+from torchvision import transforms, utils
 from torchvision.transforms.functional import normalize
 import torch.nn.functional as F
 
@@ -39,22 +40,39 @@ def get_im_gt_name_dict(datasets, flag="valid"):
             "<<<---",
         )
         tmp_im_list, tmp_gt_list = [], []
-        im_dir = datasets[i]["im_dir"]
-        gt_dir = datasets[i]["gt_dir"]
-        tmp_im_list = glob(os.path.join(im_dir, "*" + "*.[jp][pn]g"))
-        tmp_gt_list = glob(os.path.join(gt_dir, "*" + "*.[jp][pn]g"))
+        tmp_im_list = glob(datasets[i]["im_dir"] + os.sep + "*" + datasets[i]["im_ext"])
 
+        # img_name_dict[im_dirs[i][0]] = tmp_im_list
         print(
             "-im-", datasets[i]["name"], datasets[i]["im_dir"], ": ", len(tmp_im_list)
         )
 
-        print(
-            "-gt-",
-            datasets[i]["name"],
-            datasets[i]["gt_dir"],
-            ": ",
-            len(tmp_gt_list),
-        )
+        if datasets[i]["gt_dir"] == "":
+            print(
+                "-gt-",
+                datasets[i]["name"],
+                datasets[i]["gt_dir"],
+                ": ",
+                "No Ground Truth Found",
+            )
+            tmp_gt_list = []
+        else:
+            tmp_gt_list = [
+                datasets[i]["gt_dir"]
+                + os.sep
+                + x.split(os.sep)[-1].split(datasets[i]["im_ext"])[0]
+                + datasets[i]["gt_ext"]
+                for x in tmp_im_list
+            ]
+
+            # lbl_name_dict[im_dirs[i][0]] = tmp_gt_list
+            print(
+                "-gt-",
+                datasets[i]["name"],
+                datasets[i]["gt_dir"],
+                ": ",
+                len(tmp_gt_list),
+            )
 
         if flag == "train":  ## combine multiple training sets into one dataset
             if len(name_im_gt_list) == 0:
@@ -255,6 +273,75 @@ class GOSRandomHFlip(object):
         if random.random() >= self.prob:
             image = torch.flip(image, dims=[2])
             label = torch.flip(label, dims=[2])
+
+        return {"imidx": imidx, "image": image, "label": label, "shape": shape}
+
+
+class GOSResize(object):
+    def __init__(self, size=[320, 320]):
+        self.size = size
+
+    def __call__(self, sample):
+        imidx, image, label, shape = (
+            sample["imidx"],
+            sample["image"],
+            sample["label"],
+            sample["shape"],
+        )
+
+        # import time
+        # start = time.time()
+
+        image = torch.squeeze(
+            F.upsample(torch.unsqueeze(image, 0), self.size, mode="bilinear"), dim=0
+        )
+        label = torch.squeeze(
+            F.upsample(torch.unsqueeze(label, 0), self.size, mode="bilinear"), dim=0
+        )
+
+        # print("time for resize: ", time.time()-start)
+
+        return {"imidx": imidx, "image": image, "label": label, "shape": shape}
+
+
+class GOSRandomCrop(object):
+    def __init__(self, size=[288, 288]):
+        self.size = size
+
+    def __call__(self, sample):
+        imidx, image, label, shape = (
+            sample["imidx"],
+            sample["image"],
+            sample["label"],
+            sample["shape"],
+        )
+
+        h, w = image.shape[1:]
+        new_h, new_w = self.size
+
+        top = np.random.randint(0, h - new_h)
+        left = np.random.randint(0, w - new_w)
+
+        image = image[:, top : top + new_h, left : left + new_w]
+        label = label[:, top : top + new_h, left : left + new_w]
+
+        return {"imidx": imidx, "image": image, "label": label, "shape": shape}
+
+
+class GOSNormalize(object):
+    def __init__(self, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]):
+        self.mean = mean
+        self.std = std
+
+    def __call__(self, sample):
+
+        imidx, image, label, shape = (
+            sample["imidx"],
+            sample["image"],
+            sample["label"],
+            sample["shape"],
+        )
+        image = normalize(image, self.mean, self.std)
 
         return {"imidx": imidx, "image": image, "label": label, "shape": shape}
 
