@@ -6,6 +6,7 @@ from blenderproc.python.renderer import RendererUtility
 import os
 import random
 import argparse
+import numpy as np
 
 
 def main(
@@ -19,6 +20,9 @@ def main(
     max_distance: float,
     camera_mode: str,
     lights_count: int,
+    min_rotation: int,
+    max_rotation: int,
+    rotation_probability: float,
 ) -> None:
     os.environ["OPENCV_IO_ENABLE_OPENEXR"] = "1"
 
@@ -88,22 +92,21 @@ def main(
                 azimuth_max=end_angle,
             )
 
-            random_camera_movement = [
-                random.uniform(-1, 1),
-                random.uniform(-1, 1),
-                random.uniform(-1, 1),
-            ]
-            point_of_interest = point_of_interest + random_camera_movement
+            point_of_interest = point_of_interest + compute_random_camera_shift()
 
             rotation_matrix = bproc.camera.rotation_from_forward_vec(
-                point_of_interest - location
+                point_of_interest - location,
+                inplane_rot=compute_random_camera_rotation(
+                    min_rotation, max_rotation, probability=rotation_probability
+                ),
             )
-            cam2world_matrix = bproc.math.build_transformation_mat(
+
+            camera_matrix = bproc.math.build_transformation_mat(
                 location, rotation_matrix
             )
 
             # Pose has to be added before evaluating object visibility
-            bproc.camera.add_camera_pose(cam2world_matrix)
+            bproc.camera.add_camera_pose(camera_matrix)
 
             targets_visible = all(
                 bproc.camera.is_point_inside_camera_frustum(t.get_origin())
@@ -120,6 +123,25 @@ def main(
         bproc.writer.write_hdf5(output_dir, data, append_to_existing_output=True)
         bproc.utility.reset_keyframes()
         print(i)
+
+
+def compute_random_camera_rotation(
+    min_rot_degrees: int, max_rot_degrees: int, probability: float
+):
+    apply_rotation = random.random() < probability
+    return (
+        random.uniform(np.radians(min_rot_degrees), np.radians(max_rot_degrees))
+        if apply_rotation
+        else 0
+    )
+
+
+def compute_random_camera_shift():
+    return [
+        random.uniform(-1, 1),
+        random.uniform(-1, 1),
+        random.uniform(-1, 1),
+    ]
 
 
 def create_random_light():
@@ -202,6 +224,30 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
+        "--max_rotation",
+        "-maxr",
+        type=int,
+        default=-45,
+        help="Maximum camera rotation degrees",
+    )
+
+    parser.add_argument(
+        "--min_rotation",
+        "-minr",
+        type=int,
+        default=45,
+        help="Minimum camera rotation degrees",
+    )
+
+    parser.add_argument(
+        "--rotation_probability",
+        "-rotp",
+        type=float,
+        default=0.2,
+        help="Minimum camera rotation degrees",
+    )
+
+    parser.add_argument(
         "--max_distance",
         "-max",
         type=float,
@@ -239,4 +285,7 @@ if __name__ == "__main__":
         args.max_distance,
         args.camera_mode,
         args.lights,
+        args.min_rotation,
+        args.max_rotation,
+        args.rotation_probability,
     )
