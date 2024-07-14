@@ -13,24 +13,28 @@ def parse_args():
         description="Remove background from images using ORMBG model."
     )
     parser.add_argument(
+        "-i",
         "--image",
         type=str,
-        default=os.path.join("examples", "image", "example01.jpeg"),
-        help="Path to the input image file.",
+        default=None,
+        help="Path to the input image file or folder. If a folder is specified, all images in the folder will be processed.",
     )
     parser.add_argument(
+        "-o",
         "--output",
         type=str,
-        default=os.path.join("example01_no_background.png"),
-        help="Path to the output image file.",
+        default="inference",
+        help="Path to the output image file or folder. If a folder is specified, results will be saved in the specified folder.",
     )
     parser.add_argument(
+        "-m",
         "--model-path",
         type=str,
         default=os.path.join("models", "ormbg.pth"),
         help="Path to the model file.",
     )
     parser.add_argument(
+        "-c",
         "--compare",
         action="store_false",
         help="Flag to save the original and processed images side by side.",
@@ -59,33 +63,15 @@ def postprocess_image(result: torch.Tensor, im_size: list) -> np.ndarray:
     return im_array
 
 
-def inference(args):
-    image_path = args.image
-    result_name = args.output
-    model_path = args.model_path
-    compare = args.compare
-
-    net = ORMBG()
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-    if torch.cuda.is_available():
-        net.load_state_dict(torch.load(model_path))
-        net = net.cuda()
-    else:
-        net.load_state_dict(torch.load(model_path, map_location="cpu"))
-    net.eval()
-
-    model_input_size = [1024, 1024]
+def process_image(image_path, output_path, model, device, model_input_size, compare):
     orig_im = io.imread(image_path)
     orig_im_size = orig_im.shape[0:2]
     image = preprocess_image(orig_im, model_input_size).to(device)
 
-    result = net(image)
+    result = model(image)
 
-    # post process
     result_image = postprocess_image(result[0][0], orig_im_size)
 
-    # save result
     pil_im = Image.fromarray(result_image)
 
     if pil_im.mode == "RGBA":
@@ -100,10 +86,47 @@ def inference(args):
         combined_image = Image.new("RGBA", (combined_width, orig_image.height))
         combined_image.paste(orig_image, (0, 0))
         combined_image.paste(no_bg_image, (orig_image.width, 0))
-        stacked_output_path = os.path.splitext(result_name)[0] + ".png"
-        combined_image.save(stacked_output_path)
+        combined_image.save(output_path)
     else:
-        no_bg_image.save(result_name)
+        no_bg_image.save(output_path)
+
+
+def inference(args):
+    model_path = args.model_path
+    compare = args.compare
+
+    net = ORMBG()
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    if torch.cuda.is_available():
+        net.load_state_dict(torch.load(model_path))
+        net = net.cuda()
+    else:
+        net.load_state_dict(torch.load(model_path, map_location="cpu"))
+    net.eval()
+
+    model_input_size = [1024, 1024]
+
+    if os.path.isdir(args.image):
+        if not os.path.exists(args.output):
+            os.makedirs(args.output)
+
+        image_files = [
+            f
+            for f in os.listdir(args.image)
+            if os.path.isfile(os.path.join(args.image, f))
+        ]
+        total_images = len(image_files)
+
+        for idx, file_name in enumerate(image_files):
+            image_path = os.path.join(args.image, file_name)
+            output_path = os.path.join(args.output, file_name)
+            process_image(
+                image_path, output_path, net, device, model_input_size, compare
+            )
+            print(f"Processed {idx + 1}/{total_images} images")
+    else:
+        process_image(args.image, args.output, net, device, model_input_size, compare)
 
 
 if __name__ == "__main__":
