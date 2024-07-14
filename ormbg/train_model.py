@@ -410,7 +410,7 @@ if __name__ == "__main__":
     }
 
     dataset_validation = {
-        "name": "ormbg-training",
+        "name": "ormbg-validation",
         "im_dir": str(Path("dataset", "validation", "im")),
         "gt_dir": str(Path("dataset", "validation", "gt")),
         "im_ext": ".png",
