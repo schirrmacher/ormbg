@@ -59,6 +59,11 @@ def main(
         and any(target in obj.get_name() for target in target_names)
     ]
 
+    if len(targets) == 0:
+        raise ValueError(
+            f"No objects starting with one of the following names found in {scene}: {target_names}"
+        )
+
     lights = []
     for _ in range(lights_count):
         lights.append(create_random_light())
