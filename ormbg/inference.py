@@ -13,29 +13,29 @@ def parse_args():
         description="Remove background from images using ORMBG model."
     )
     parser.add_argument(
-        "-i",
         "--image",
+        "-i",
         type=str,
         default=None,
         help="Path to the input image file or folder. If a folder is specified, all images in the folder will be processed.",
     )
     parser.add_argument(
-        "-o",
         "--output",
+        "-o",
         type=str,
         default="inference",
         help="Path to the output image file or folder. If a folder is specified, results will be saved in the specified folder.",
     )
     parser.add_argument(
-        "-m",
         "--model-path",
+        "-m",
         type=str,
         default=os.path.join("models", "ormbg.pth"),
         help="Path to the model file.",
     )
     parser.add_argument(
-        "-c",
         "--compare",
+        "-c",
         action="store_false",
         help="Flag to save the original and processed images side by side.",
     )
@@ -101,6 +101,8 @@ def process_image(
     orig_image = Image.open(image_path)
     no_bg_image.paste(orig_image, mask=pil_im)
 
+    output_path = os.path.join(output_path, os.path.basename(image_path))
+
     if compare:
         combined_width = orig_image.width + no_bg_image.width
         combined_image = Image.new("RGBA", (combined_width, orig_image.height))
@@ -143,10 +145,12 @@ def inference(args):
 
     model_input_size = [1024, 1024]
 
-    if os.path.isdir(args.image):
-        if not os.path.exists(args.output):
-            os.makedirs(args.output)
+    if os.path.isfile(args.output):
+        raise argparse.ArgumentTypeError(f"'{args.output}' must be a directory")
 
+    os.makedirs(args.output, exist_ok=True)
+
+    if os.path.isdir(args.image):
         image_files = [f for f in os.listdir(args.image) if is_image_file(f)]
         total_images = len(image_files)
 
