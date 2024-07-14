@@ -55,8 +55,6 @@ def main(
         and any(target in obj.get_name() for target in target_names)
     ]
 
-    poi = bproc.object.compute_poi(targets) + [0, 0, -0.5]
-
     lights = []
     for _ in range(lights_count):
         lights.append(create_random_light())
@@ -77,21 +75,46 @@ def main(
             start_angle = -135 if random_bool else 45
             end_angle = -45 if random_bool else 135
 
-        location = bproc.sampler.shell(
-            center=[0, 0, random.uniform(1, 2)],
-            radius_min=min_distance,
-            radius_max=max_distance,
-            elevation_min=-20,
-            elevation_max=20,
-            azimuth_min=start_angle,
-            azimuth_max=end_angle,
-        )
+        point_of_interest = bproc.object.compute_poi(targets)
 
-        rotation_matrix = bproc.camera.rotation_from_forward_vec(poi - location)
-        cam2world_matrix = bproc.math.build_transformation_mat(
-            location, rotation_matrix
-        )
-        bproc.camera.add_camera_pose(cam2world_matrix)
+        while True:
+            location = bproc.sampler.shell(
+                center=[0, 0, random.uniform(1, 2)],
+                radius_min=min_distance,
+                radius_max=max_distance,
+                elevation_min=-20,
+                elevation_max=20,
+                azimuth_min=start_angle,
+                azimuth_max=end_angle,
+            )
+
+            random_camera_movement = [
+                random.uniform(-1, 1),
+                random.uniform(-1, 1),
+                random.uniform(-1, 1),
+            ]
+            point_of_interest = point_of_interest + random_camera_movement
+
+            rotation_matrix = bproc.camera.rotation_from_forward_vec(
+                point_of_interest - location
+            )
+            cam2world_matrix = bproc.math.build_transformation_mat(
+                location, rotation_matrix
+            )
+
+            # Pose has to be added before evaluating object visibility
+            bproc.camera.add_camera_pose(cam2world_matrix)
+
+            targets_visible = all(
+                bproc.camera.is_point_inside_camera_frustum(t.get_origin())
+                for t in targets
+            )
+            if targets_visible:
+                break
+            else:
+                bproc.utility.reset_keyframes()
+                continue
+
         bproc.renderer.set_output_format(enable_transparency=True)
         data = bproc.renderer.render()
         bproc.writer.write_hdf5(output_dir, data, append_to_existing_output=True)
@@ -116,7 +139,6 @@ def random_light_location():
         elevation_min=-30,
         elevation_max=30,
     )
-    print(f"Light location: {location}")
     return location
 
 
