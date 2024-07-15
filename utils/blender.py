@@ -19,7 +19,8 @@ def main(
     min_distance: float,
     max_distance: float,
     camera_mode: str,
-    camera_shift: float,
+    camera_shift_vertical: float,
+    camera_shift_horizontal: float,
     lights_count: int,
     min_rotation: int,
     max_rotation: int,
@@ -99,7 +100,8 @@ def main(
             )
 
             point_of_interest = point_of_interest + compute_random_camera_shift(
-                camera_shift
+                vertical_shift=camera_shift_vertical,
+                horizontal_shift=camera_shift_horizontal,
             )
 
             rotation_matrix = bproc.camera.rotation_from_forward_vec(
@@ -151,11 +153,11 @@ def compute_random_camera_rotation(
     )
 
 
-def compute_random_camera_shift(camera_shift):
+def compute_random_camera_shift(vertical_shift, horizontal_shift):
     return [
-        random.uniform(-camera_shift, camera_shift),
-        random.uniform(-camera_shift, camera_shift),
-        random.uniform(-camera_shift, camera_shift),
+        0,
+        random.uniform(-horizontal_shift, horizontal_shift),
+        random.uniform(-vertical_shift, vertical_shift),
     ]
 
 
@@ -280,10 +282,18 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "--camera_shift",
-        "-cs",
+        "--camera_shift_vertical",
+        "-cv",
         type=float,
         default=0.2,
+        help="Random camera shift applied",
+    )
+
+    parser.add_argument(
+        "--camera_shift_horizontal",
+        "-ch",
+        type=float,
+        default=0.5,
         help="Random camera shift applied",
     )
 
@@ -298,18 +308,19 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     main(
-        args.scene,
-        args.output_dir,
-        args.width,
-        args.height,
-        args.iterations,
-        args.samples,
-        args.min_distance,
-        args.max_distance,
-        args.camera_mode,
-        args.camera_shift,
-        args.lights,
-        args.min_rotation,
-        args.max_rotation,
-        args.rotation_probability,
+        scene=args.scene,
+        output_dir=args.output_dir,
+        width=args.width,
+        height=args.height,
+        iterations=args.iterations,
+        samples=args.samples,
+        min_distance=args.min_distance,
+        max_distance=args.max_distance,
+        camera_mode=args.camera_mode,
+        camera_shift_vertical=args.camera_shift_vertical,
+        camera_shift_horizontal=args.camera_shift_horizontal,
+        lights_count=args.lights,
+        min_rotation=args.min_rotation,
+        max_rotation=args.max_rotation,
+        rotation_probability=args.rotation_probability,
     )
