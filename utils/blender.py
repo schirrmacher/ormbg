@@ -19,6 +19,7 @@ def main(
     min_distance: float,
     max_distance: float,
     camera_mode: str,
+    camera_shift: float,
     lights_count: int,
     min_rotation: int,
     max_rotation: int,
@@ -97,7 +98,9 @@ def main(
                 azimuth_max=end_angle,
             )
 
-            point_of_interest = point_of_interest + compute_random_camera_shift()
+            point_of_interest = point_of_interest + compute_random_camera_shift(
+                camera_shift
+            )
 
             rotation_matrix = bproc.camera.rotation_from_forward_vec(
                 point_of_interest - location,
@@ -117,6 +120,13 @@ def main(
                 bproc.camera.is_point_inside_camera_frustum(t.get_origin())
                 for t in targets
             )
+
+            print(
+                bproc.camera.scene_coverage_score(
+                    camera_matrix, special_objects=targets
+                )
+            )
+
             if targets_visible:
                 break
             else:
@@ -141,11 +151,11 @@ def compute_random_camera_rotation(
     )
 
 
-def compute_random_camera_shift():
+def compute_random_camera_shift(camera_shift):
     return [
-        random.uniform(-0.5, 0.5),
-        random.uniform(-0.5, 0.5),
-        random.uniform(-0.5, 0.5),
+        random.uniform(-camera_shift, camera_shift),
+        random.uniform(-camera_shift, camera_shift),
+        random.uniform(-camera_shift, camera_shift),
     ]
 
 
@@ -270,6 +280,14 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
+        "--camera_shift",
+        "-cs",
+        type=float,
+        default=0.2,
+        help="Random camera shift applied",
+    )
+
+    parser.add_argument(
         "--lights",
         "-l",
         type=int,
@@ -289,6 +307,7 @@ if __name__ == "__main__":
         args.min_distance,
         args.max_distance,
         args.camera_mode,
+        args.camera_shift,
         args.lights,
         args.min_rotation,
         args.max_rotation,
