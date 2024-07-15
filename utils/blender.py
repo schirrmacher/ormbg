@@ -143,9 +143,9 @@ def compute_random_camera_rotation(
 
 def compute_random_camera_shift():
     return [
-        random.uniform(-1, 1),
-        random.uniform(-1, 1),
-        random.uniform(-1, 1),
+        random.uniform(-0.5, 0.5),
+        random.uniform(-0.5, 0.5),
+        random.uniform(-0.5, 0.5),
     ]
 
 
@@ -229,6 +229,14 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
+        "--max_distance",
+        "-max",
+        type=float,
+        default=4.5,
+        help="Maximum distance for the camera",
+    )
+
+    parser.add_argument(
         "--max_rotation",
         "-maxr",
         type=int,
@@ -250,14 +258,6 @@ if __name__ == "__main__":
         type=float,
         default=0.2,
         help="Minimum camera rotation degrees",
-    )
-
-    parser.add_argument(
-        "--max_distance",
-        "-max",
-        type=float,
-        default=4.5,
-        help="Maximum distance for the camera",
     )
 
     parser.add_argument(
