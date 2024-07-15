@@ -19,8 +19,10 @@ def main(
     min_distance: float,
     max_distance: float,
     camera_mode: str,
-    camera_shift_vertical: float,
-    camera_shift_horizontal: float,
+    camera_shift_top: float,
+    camera_shift_bottom: float,
+    camera_shift_left: float,
+    camera_shift_right: float,
     lights_count: int,
     min_rotation: int,
     max_rotation: int,
@@ -100,8 +102,10 @@ def main(
             )
 
             point_of_interest = point_of_interest + compute_random_camera_shift(
-                vertical_shift=camera_shift_vertical,
-                horizontal_shift=camera_shift_horizontal,
+                top=camera_shift_top,
+                bottom=camera_shift_bottom,
+                right=camera_shift_right,
+                left=camera_shift_left,
             )
 
             rotation_matrix = bproc.camera.rotation_from_forward_vec(
@@ -153,11 +157,11 @@ def compute_random_camera_rotation(
     )
 
 
-def compute_random_camera_shift(vertical_shift, horizontal_shift):
+def compute_random_camera_shift(top: float, bottom: float, right: float, left: float):
     return [
         0,
-        random.uniform(-horizontal_shift, horizontal_shift),
-        random.uniform(-vertical_shift, vertical_shift),
+        random.uniform(-left, right),
+        random.uniform(-top, bottom),
     ]
 
 
@@ -282,19 +286,35 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "--camera_shift_vertical",
-        "-cv",
+        "--camera_shift_top",
+        "-ct",
         type=float,
-        default=0.2,
+        default=0.6,
         help="Random camera shift applied",
     )
 
     parser.add_argument(
-        "--camera_shift_horizontal",
-        "-ch",
+        "--camera_shift_bottom",
+        "-cb",
         type=float,
-        default=0.5,
-        help="Random camera shift applied",
+        default=0.2,
+        help="Random camera shift to the right applied",
+    )
+
+    parser.add_argument(
+        "--camera_shift_left",
+        "-cl",
+        type=float,
+        default=0.2,
+        help="Random camera shift to the left applied",
+    )
+
+    parser.add_argument(
+        "--camera_shift_right",
+        "-cr",
+        type=float,
+        default=0.2,
+        help="Random camera shift to the right applied",
     )
 
     parser.add_argument(
@@ -317,8 +337,10 @@ if __name__ == "__main__":
         min_distance=args.min_distance,
         max_distance=args.max_distance,
         camera_mode=args.camera_mode,
-        camera_shift_vertical=args.camera_shift_vertical,
-        camera_shift_horizontal=args.camera_shift_horizontal,
+        camera_shift_top=args.camera_shift_top,
+        camera_shift_bottom=args.camera_shift_bottom,
+        camera_shift_left=args.camera_shift_left,
+        camera_shift_right=args.camera_shift_right,
         lights_count=args.lights,
         min_rotation=args.min_rotation,
         max_rotation=args.max_rotation,
