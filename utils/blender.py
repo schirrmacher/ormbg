@@ -74,23 +74,24 @@ def main(
 
     for i in range(iterations):
 
-        for light in lights:
-            light.set_location(random_light_location())
-
-        if camera_mode == "frontal":
-            start_angle = -135
-            end_angle = -45
-        elif camera_mode == "back":
-            start_angle = 45
-            end_angle = 135
-        elif camera_mode == "frontal_and_back":
-            random_bool = bool(random.getrandbits(1))
-            start_angle = -135 if random_bool else 45
-            end_angle = -45 if random_bool else 135
-
-        point_of_interest = bproc.object.compute_poi(targets)
-
         while True:
+
+            for light in lights:
+                light.set_location(random_light_location())
+
+            if camera_mode == "frontal":
+                start_angle = -135
+                end_angle = -45
+            elif camera_mode == "back":
+                start_angle = 45
+                end_angle = 135
+            elif camera_mode == "frontal_and_back":
+                random_bool = bool(random.getrandbits(1))
+                start_angle = -135 if random_bool else 45
+                end_angle = -45 if random_bool else 135
+
+            point_of_interest = bproc.object.compute_poi(targets)
+
             location = bproc.sampler.shell(
                 center=[0, 0, random.uniform(1, 2)],
                 radius_min=min_distance,
@@ -125,12 +126,6 @@ def main(
             targets_visible = all(
                 bproc.camera.is_point_inside_camera_frustum(t.get_origin())
                 for t in targets
-            )
-
-            print(
-                bproc.camera.scene_coverage_score(
-                    camera_matrix, special_objects=targets
-                )
             )
 
             if targets_visible:
