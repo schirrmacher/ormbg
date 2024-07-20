@@ -3,6 +3,7 @@ import cv2
 import argparse
 import random
 import string
+import albumentations as A
 
 
 def create_ground_truth_mask(image):
@@ -74,7 +75,34 @@ def merge_images(background, foreground, position=(0, 0)):
     return background
 
 
-def create_training_data(background_dir, png_dir, image_dir, ground_truth_dir):
+def augment_background(image):
+    transform = A.Compose([])
+    return transform(image=image)["image"]
+
+
+def augment_png(image):
+    transform = A.Compose([])
+    return transform(image=image)["image"]
+
+
+def augment_final(image):
+    transform = A.Compose(
+        [
+            A.RandomBrightnessContrast(
+                brightness_limit=(-0.3, 0.3),
+                contrast_limit=(-0.3, 0.3),
+                brightness_by_max=True,
+                always_apply=True,
+                p=1.0,
+            )
+        ]
+    )
+    return transform(image=image)["image"]
+
+
+def create_training_data(
+    background_dir, png_dir, image_dir, ground_truth_dir, max_iterations
+):
     if not os.path.exists(image_dir):
         os.makedirs(image_dir)
     if not os.path.exists(ground_truth_dir):
@@ -94,6 +122,9 @@ def create_training_data(background_dir, png_dir, image_dir, ground_truth_dir):
     i = 0
     for png_path in png_files:
 
+        if max_iterations is not None and i >= max_iterations:
+            break
+
         try:
             png = cv2.imread(png_path, cv2.IMREAD_UNCHANGED)
             if png.shape[2] < 4:
@@ -104,12 +135,18 @@ def create_training_data(background_dir, png_dir, image_dir, ground_truth_dir):
 
             background = resize_background_if_needed(background, png)
 
+            # Apply augmentations
+            background = augment_background(background)
+            png = augment_png(png)
+
             file_name = create_random_filename_from_filepath(png_path)
             image_output_path = os.path.join(image_dir, file_name)
             ground_truth_output_path = os.path.join(ground_truth_dir, file_name)
 
             ground_truth = create_ground_truth_mask(png)
             result = merge_images(background, png)
+
+            result = augment_final(result)
 
             assert ground_truth.shape[0] == result.shape[0]
             assert ground_truth.shape[1] == result.shape[1]
@@ -154,6 +191,13 @@ def main():
         default="gt",
         help="Ground truth folder",
     )
+    parser.add_argument(
+        "-max",
+        "--max_iterations",
+        type=int,
+        default=None,
+        help="Maximum number of iterations",
+    )
     args = parser.parse_args()
 
     try:
@@ -162,6 +206,7 @@ def main():
             png_dir=args.png_dir,
             image_dir=args.image_dir,
             ground_truth_dir=args.ground_truth_dir,
+            max_iterations=args.max_iterations,
         )
     except KeyboardInterrupt:
         exit(0)
