@@ -94,7 +94,22 @@ def augment_final(image):
                 brightness_by_max=True,
                 always_apply=True,
                 p=1.0,
-            )
+            ),
+            A.ColorJitter(
+                brightness=(1, 1),
+                contrast=(1, 1),
+                saturation=(0.5, 1),
+                hue=(-0.05, 0.05),
+                always_apply=True,
+                p=1.0,  # float
+            ),
+            A.GaussNoise(
+                var_limit=(0.0, 20.0),
+                mean=0,
+                per_channel=True,
+                always_apply=True,
+                p=0.3,
+            ),
         ]
     )
     return transform(image=image)["image"]
