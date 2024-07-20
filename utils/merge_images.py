@@ -19,9 +19,30 @@ def resize_background_if_needed(background, foreground):
     bh, bw = background.shape[:2]
     fh, fw = foreground.shape[:2]
 
-    if bh != fh or bw != fw:
-        background = cv2.resize(background, (fw, fh), interpolation=cv2.INTER_AREA)
-    return background
+    # Compute the scale factors
+    scale_w = fw / bw
+    scale_h = fh / bh
+    scale = max(scale_w, scale_h)
+
+    # Calculate the new dimensions while keeping aspect ratio
+    new_w = int(bw * scale)
+    new_h = int(bh * scale)
+
+    # Resize the background
+    background_resized = cv2.resize(
+        background, (new_w, new_h), interpolation=cv2.INTER_AREA
+    )
+
+    # Calculate the top-left corner of the cropping area
+    x_start = (new_w - fw) // 2
+    y_start = (new_h - fh) // 2
+
+    # Crop the resized background to match the foreground dimensions
+    background_cropped = background_resized[
+        y_start : y_start + fh, x_start : x_start + fw
+    ]
+
+    return background_cropped
 
 
 def merge_images(background, foreground, position=(0, 0)):
@@ -53,49 +74,54 @@ def merge_images(background, foreground, position=(0, 0)):
     return background
 
 
-def create_training_data(
-    background_dir, segmentation_dir, image_path, ground_truth_path
-):
-    if not os.path.exists(image_path):
-        os.makedirs(image_path)
-    if not os.path.exists(ground_truth_path):
-        os.makedirs(ground_truth_path)
+def create_training_data(background_dir, png_dir, image_dir, ground_truth_dir):
+    if not os.path.exists(image_dir):
+        os.makedirs(image_dir)
+    if not os.path.exists(ground_truth_dir):
+        os.makedirs(ground_truth_dir)
 
     background_files = [
         os.path.join(background_dir, f)
         for f in os.listdir(background_dir)
         if os.path.isfile(os.path.join(background_dir, f))
     ]
-    segmentation_files = [
-        os.path.join(segmentation_dir, f)
-        for f in os.listdir(segmentation_dir)
-        if os.path.isfile(os.path.join(segmentation_dir, f))
+    png_files = [
+        os.path.join(png_dir, f)
+        for f in os.listdir(png_dir)
+        if os.path.isfile(os.path.join(png_dir, f)) and f.lower().endswith(".png")
     ]
 
-    for segmentation_path in segmentation_files:
-        segmentation = cv2.imread(segmentation_path, cv2.IMREAD_UNCHANGED)
-        if segmentation.shape[2] < 4:
-            raise Exception(
-                f"Image does not have an alpha channel: {segmentation_path}"
-            )
+    i = 0
+    for png_path in png_files:
 
-        background_path = random.choice(background_files)
-        background = cv2.imread(background_path, cv2.IMREAD_COLOR)
+        try:
+            png = cv2.imread(png_path, cv2.IMREAD_UNCHANGED)
+            if png.shape[2] < 4:
+                raise Exception(f"Image does not have an alpha channel: {png_path}")
 
-        background = resize_background_if_needed(background, segmentation)
+            background_path = random.choice(background_files)
+            background = cv2.imread(background_path, cv2.IMREAD_COLOR)
 
-        file_name = create_random_filename_from_filepath(segmentation_path)
-        image_output_path = os.path.join(image_path, file_name)
-        ground_truth_output_path = os.path.join(ground_truth_path, file_name)
+            background = resize_background_if_needed(background, png)
 
-        ground_truth = create_ground_truth_mask(segmentation)
-        result = merge_images(background, segmentation)
+            file_name = create_random_filename_from_filepath(png_path)
+            image_output_path = os.path.join(image_dir, file_name)
+            ground_truth_output_path = os.path.join(ground_truth_dir, file_name)
 
-        assert ground_truth.shape[0] == result.shape[0]
-        assert ground_truth.shape[1] == result.shape[1]
+            ground_truth = create_ground_truth_mask(png)
+            result = merge_images(background, png)
 
-        cv2.imwrite(ground_truth_output_path, ground_truth)
-        cv2.imwrite(image_output_path, result)
+            assert ground_truth.shape[0] == result.shape[0]
+            assert ground_truth.shape[1] == result.shape[1]
+
+            cv2.imwrite(ground_truth_output_path, ground_truth)
+            cv2.imwrite(image_output_path, result)
+
+            print(f"{i}/{len(png_files)}")
+            i += 1
+
+        except Exception as e:
+            print(f"Skipping {png_path}: {e}")
 
 
 def main():
@@ -104,38 +130,41 @@ def main():
     )
     parser.add_argument(
         "-bd",
-        "--background-dir",
+        "--background_dir",
         required=True,
         help="Path to the background images directory",
     )
     parser.add_argument(
-        "-sd",
-        "--segmentation-dir",
+        "-png",
+        "--png_dir",
         required=True,
         help="Path to the segmentation images directory",
     )
     parser.add_argument(
         "-im",
-        "--image-path",
+        "--image_dir",
         type=str,
         default="im",
         help="Path where the merged images will be saved",
     )
     parser.add_argument(
         "-gt",
-        "--groundtruth-path",
+        "--ground_truth_dir",
         type=str,
         default="gt",
         help="Ground truth folder",
     )
     args = parser.parse_args()
 
-    create_training_data(
-        background_dir=args.background_dir,
-        segmentation_dir=args.segmentation_dir,
-        image_path=args.image_path,
-        ground_truth_path=args.groundtruth_path,
-    )
+    try:
+        create_training_data(
+            background_dir=args.background_dir,
+            png_dir=args.png_dir,
+            image_dir=args.image_dir,
+            ground_truth_dir=args.ground_truth_dir,
+        )
+    except KeyboardInterrupt:
+        exit(0)
 
 
 if __name__ == "__main__":
