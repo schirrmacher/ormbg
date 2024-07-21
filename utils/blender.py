@@ -6,6 +6,7 @@ from blenderproc.scripts.saveAsImg import convert_hdf
 
 import os
 import re
+import uuid
 import random
 import argparse
 import numpy as np
@@ -143,15 +144,33 @@ def main(
             data = bproc.renderer.render()
             bproc.writer.write_hdf5(output_dir, data, append_to_existing_output=True)
             latest_hdf5_container = get_newest_hdf5_file(output_dir)
+
             # Extract image
             image_dir = output_dir + os.sep + "images"
             Path(image_dir).mkdir(parents=True, exist_ok=True)
             convert_hdf(base_file_path=latest_hdf5_container, output_folder=image_dir)
+
+            # Randomize file name:
+            # First remove hdf5 extension, then add png extension
+            image_file_name = str(
+                os.path.basename(Path(latest_hdf5_container).with_suffix(""))
+                + "_colors.png"  # BlenderProc filename
+            )
+            randomize_file_name(image_dir + os.sep + image_file_name)
             bproc.utility.reset_keyframes()
+
             i += 1
         except Exception as e:
             print(f"Skipping {i} due to error: {e}")
         print(f"{i}/{iterations}")
+
+
+def randomize_file_name(file_path: str) -> str:
+    new_file_name = str(uuid.uuid4()) + os.path.splitext(file_path)[1]
+    dir_name = os.path.dirname(file_path)
+    new_file_path = os.path.join(dir_name, new_file_name)
+    os.rename(file_path, new_file_path)
+    return new_file_path
 
 
 def get_newest_hdf5_file(output_dir):
