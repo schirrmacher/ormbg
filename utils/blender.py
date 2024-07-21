@@ -2,11 +2,14 @@
 #  Make sure that is the first thing you import, as otherwise the import of third-party packages installed in the blender environment will fail.
 import blenderproc as bproc
 from blenderproc.python.renderer import RendererUtility
+from blenderproc.scripts.saveAsImg import convert_hdf
 
 import os
+import re
 import random
 import argparse
 import numpy as np
+from pathlib import Path
 
 
 def main(
@@ -72,7 +75,8 @@ def main(
     for _ in range(lights_count):
         lights.append(create_random_light())
 
-    for i in range(iterations):
+    i = 0
+    while i < iterations:
 
         while True:
 
@@ -134,11 +138,39 @@ def main(
                 bproc.utility.reset_keyframes()
                 continue
 
-        bproc.renderer.set_output_format(enable_transparency=True)
-        data = bproc.renderer.render()
-        bproc.writer.write_hdf5(output_dir, data, append_to_existing_output=True)
-        bproc.utility.reset_keyframes()
-        print(i)
+        try:
+            bproc.renderer.set_output_format(enable_transparency=True)
+            data = bproc.renderer.render()
+            bproc.writer.write_hdf5(output_dir, data, append_to_existing_output=True)
+            latest_hdf5_container = get_newest_hdf5_file(output_dir)
+            # Extract image
+            image_dir = output_dir + os.sep + "images"
+            Path(image_dir).mkdir(parents=True, exist_ok=True)
+            convert_hdf(base_file_path=latest_hdf5_container, output_folder=image_dir)
+            bproc.utility.reset_keyframes()
+            i += 1
+        except Exception as e:
+            print(f"Skipping {i} due to error: {e}")
+        print(f"{i}/{iterations}")
+
+
+def get_newest_hdf5_file(output_dir):
+    # Blender Proc appends a directory and adds files with increasing index as name
+    # Regular expression to match the pattern "<INDEX_NUMBER>.hdf5"
+    pattern = re.compile(r"^(\d+)\.hdf5$")
+
+    max_index = -1
+    newest_file_path = None
+
+    for filename in os.listdir(output_dir):
+        match = pattern.match(filename)
+        if match:
+            index = int(match.group(1))
+            if index > max_index:
+                max_index = index
+                newest_file_path = filename
+
+    return output_dir + os.sep + newest_file_path
 
 
 def compute_random_camera_rotation(
