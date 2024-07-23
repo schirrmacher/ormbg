@@ -34,10 +34,12 @@ def parse_args():
         help="Path to the model file.",
     )
     parser.add_argument(
-        "--compare",
-        "-c",
-        action="store_false",
-        help="Flag to save the original and processed images side by side.",
+        "--output-mode",
+        "-om",
+        type=str,
+        choices=["compare", "processed", "alpha"],
+        default="processed",
+        help="Output mode: 'compare' to save original and processed images side by side, 'processed' to save only the processed image, or 'alpha' to save only the alpha channel as a black and white image.",
     )
     parser.add_argument(
         "--bg-color",
@@ -72,7 +74,7 @@ def postprocess_image(result: torch.Tensor, im_size: list) -> np.ndarray:
 
 
 def process_image(
-    image_path, output_path, model, device, model_input_size, compare, bg_color
+    image_path, output_dir, model, device, model_input_size, output_mode, bg_color
 ):
     orig_im = io.imread(image_path)
     orig_im_size = orig_im.shape[0:2]
@@ -101,9 +103,10 @@ def process_image(
     orig_image = Image.open(image_path)
     no_bg_image.paste(orig_image, mask=pil_im)
 
-    output_path = os.path.join(output_path, os.path.basename(image_path))
+    # Correctly form the output path
+    output_path = os.path.join(output_dir, os.path.basename(image_path))
 
-    if compare:
+    if output_mode == "compare":
         combined_width = orig_image.width + no_bg_image.width
         combined_image = Image.new("RGBA", (combined_width, orig_image.height))
         combined_image.paste(orig_image, (0, 0))
@@ -114,6 +117,10 @@ def process_image(
             combined_image = combined_image.convert("RGB")
             output_path = output_path.rsplit(".", 1)[0] + ".png"
         combined_image.save(output_path)
+    elif output_mode == "alpha":
+        alpha_image = pil_im.convert("L")
+        alpha_output_path = output_path.rsplit(".", 1)[0] + ".png"
+        alpha_image.save(alpha_output_path)
     else:
         if output_path.lower().endswith(".jpg") or output_path.lower().endswith(
             ".jpeg"
@@ -130,7 +137,7 @@ def is_image_file(filename):
 
 def inference(args):
     model_path = args.model_path
-    compare = args.compare
+    output_mode = args.output_mode
     bg_color = args.bg_color
 
     net = ORMBG()
@@ -150,27 +157,37 @@ def inference(args):
 
     os.makedirs(args.output, exist_ok=True)
 
-    if os.path.isdir(args.image):
-        image_files = [f for f in os.listdir(args.image) if is_image_file(f)]
-        total_images = len(image_files)
+    try:
+        if os.path.isdir(args.image):
+            image_files = [f for f in os.listdir(args.image) if is_image_file(f)]
+            total_images = len(image_files)
 
-        for idx, file_name in enumerate(image_files):
-            image_path = os.path.join(args.image, file_name)
-            output_path = os.path.join(args.output, file_name)
+            for idx, file_name in enumerate(image_files):
+                image_path = os.path.join(args.image, file_name)
+                process_image(
+                    image_path,
+                    args.output,  # Use the directory path here
+                    net,
+                    device,
+                    model_input_size,
+                    output_mode,
+                    bg_color,
+                )
+                print(f"Processed {idx + 1}/{total_images} images")
+        else:
             process_image(
-                image_path,
-                output_path,
+                args.image,
+                args.output,
                 net,
                 device,
                 model_input_size,
-                compare,
+                output_mode,
                 bg_color,
             )
-            print(f"Processed {idx + 1}/{total_images} images")
-    else:
-        process_image(
-            args.image, args.output, net, device, model_input_size, compare, bg_color
-        )
+    except KeyboardInterrupt:
+        print("Process interrupted by user. Exiting gracefully.")
+    except Exception as e:
+        print(f"An error occurred: {e}")
 
 
 if __name__ == "__main__":
