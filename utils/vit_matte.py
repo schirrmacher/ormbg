@@ -131,55 +131,87 @@ def run(
     return alpha, foreground, res_bg_replacement
 
 
+def process_folder(image_folder: str, trimap_folder: str, args):
+    image_files = sorted(os.listdir(image_folder))
+    trimap_files = sorted(os.listdir(trimap_folder))
+
+    for image_file, trimap_file in zip(image_files, trimap_files):
+        image_path = os.path.join(image_folder, image_file)
+        trimap_path = os.path.join(trimap_folder, trimap_file)
+
+        image = PIL.Image.open(image_path)
+        image = resize_image(image, MAX_IMAGE_SIZE)
+        trimap = PIL.Image.open(trimap_path).convert("L")  # Ensure trimap is grayscale
+        trimap = resize_image(trimap, MAX_IMAGE_SIZE)
+        background_image = (
+            PIL.Image.open(args.background).convert("RGB") if args.background else None
+        )
+
+        # Run matting
+        alpha, foreground, background_replacement = run(
+            image, trimap, args.background is not None, background_image
+        )
+
+        # Save the outputs
+        base_name = os.path.splitext(image_file)[0]
+        alpha_image = PIL.Image.fromarray((alpha * 255).astype(np.uint8))
+        alpha_image.save(os.path.join(args.output_folder, f"{base_name}_alpha.png"))
+        foreground.save(os.path.join(args.output_folder, f"{base_name}_foreground.png"))
+        if background_replacement:
+            background_replacement.save(
+                os.path.join(
+                    args.output_folder, f"{base_name}_background_replacement.png"
+                )
+            )
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="ViTMatte Image Matting")
     parser.add_argument(
-        "--image", required=True, type=str, help="Path to the input image"
+        "--image", required=True, type=str, help="Path to the input image or folder"
     )
     parser.add_argument(
-        "--trimap", required=True, type=str, help="Path to the trimap image"
+        "--trimap", required=True, type=str, help="Path to the trimap image or folder"
     )
     parser.add_argument(
         "--background", type=str, help="Path to the background image (optional)"
     )
     parser.add_argument(
-        "--output_alpha",
+        "--output_folder",
         type=str,
-        default="alpha.png",
-        help="Path to save the alpha output image",
-    )
-    parser.add_argument(
-        "--output_foreground",
-        type=str,
-        default="foreground.png",
-        help="Path to save the foreground output image",
-    )
-    parser.add_argument(
-        "--output_background",
-        type=str,
-        default="background_replacement.png",
-        help="Path to save the background replacement output image",
+        default="output",
+        help="Folder to save the output images",
     )
 
     args = parser.parse_args()
 
-    # Load and resize images
-    image = PIL.Image.open(args.image)
-    image = resize_image(image, MAX_IMAGE_SIZE)
-    trimap = PIL.Image.open(args.trimap).convert("L")  # Ensure trimap is grayscale
-    trimap = resize_image(trimap, MAX_IMAGE_SIZE)
-    background_image = (
-        PIL.Image.open(args.background).convert("RGB") if args.background else None
-    )
+    os.makedirs(args.output_folder, exist_ok=True)
 
-    # Run matting
-    alpha, foreground, background_replacement = run(
-        image, trimap, args.background is not None, background_image
-    )
+    if os.path.isdir(args.image) and os.path.isdir(args.trimap):
+        process_folder(args.image, args.trimap, args)
+    else:
+        # Load and resize images
+        image = PIL.Image.open(args.image)
+        image = resize_image(image, MAX_IMAGE_SIZE)
+        trimap = PIL.Image.open(args.trimap).convert("L")  # Ensure trimap is grayscale
+        trimap = resize_image(trimap, MAX_IMAGE_SIZE)
+        background_image = (
+            PIL.Image.open(args.background).convert("RGB") if args.background else None
+        )
 
-    # Save the outputs
-    alpha_image = PIL.Image.fromarray((alpha * 255).astype(np.uint8))
-    alpha_image.save(args.output_alpha)
-    foreground.save(args.output_foreground)
-    if background_replacement:
-        background_replacement.save(args.output_background)
+        # Run matting
+        alpha, foreground, background_replacement = run(
+            image, trimap, args.background is not None, background_image
+        )
+
+        # Save the outputs
+        base_name = os.path.splitext(os.path.basename(args.image))[0]
+        alpha_image = PIL.Image.fromarray((alpha * 255).astype(np.uint8))
+        alpha_image.save(os.path.join(args.output_folder, f"{base_name}_alpha.png"))
+        foreground.save(os.path.join(args.output_folder, f"{base_name}_foreground.png"))
+        if background_replacement:
+            background_replacement.save(
+                os.path.join(
+                    args.output_folder, f"{base_name}_background_replacement.png"
+                )
+            )
