@@ -3,8 +3,15 @@ import torch
 import argparse
 import numpy as np
 from skimage import io
-from ormbg.models.ormbg import ORMBG
 import torch.nn.functional as F
+
+import sys
+
+sys.path.append("../ormbg")
+sys.path.append("../experiments")
+
+from ormbg.models.ormbg import ORMBG
+from experiments.loss import PixLoss, ClsLoss
 
 
 def parse_args():
@@ -15,6 +22,7 @@ def parse_args():
         "--prediction",
         type=list,
         default=[
+            os.path.join("examples", "loss", "gt.png"),
             os.path.join("examples", "loss", "loss01.png"),
             os.path.join("examples", "loss", "loss02.png"),
             os.path.join("examples", "loss", "loss03.png"),
@@ -50,19 +58,29 @@ def inference(args):
     net = ORMBG()
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    for pred_path in prediction_paths:
+    birefnet_pix_loss_calculation = PixLoss()
+    birefnet_cls_loss_calculation = ClsLoss()
+
+    for prediction_path in prediction_paths:
 
         model_input_size = [1024, 1024]
-        loss = io.imread(pred_path)
-        prediction = preprocess_image(loss, model_input_size).to(device)
+        prediction_image = io.imread(prediction_path)
+        prediction = preprocess_image(prediction_image, model_input_size).to(device)
 
         model_input_size = [1024, 1024]
-        gt = io.imread(gt_path)
-        ground_truth = preprocess_image(gt, model_input_size).to(device)
+        ground_truth_image = io.imread(gt_path)
+        ground_truth = preprocess_image(ground_truth_image, model_input_size).to(device)
 
-        _, loss = net.compute_loss([prediction], ground_truth)
-
-        print(f"Loss: {pred_path} {loss}")
+        _, is_net_loss = net.compute_loss([prediction], ground_truth)
+        birefnet_pix_loss = birefnet_pix_loss_calculation.forward(
+            [prediction], ground_truth
+        )
+        birefnet_cls_loss = birefnet_cls_loss_calculation.forward(
+            [prediction], ground_truth
+        )
+        print(
+            f"Loss: {prediction_path} {is_net_loss} {birefnet_pix_loss} {birefnet_cls_loss}"
+        )
 
 
 if __name__ == "__main__":
