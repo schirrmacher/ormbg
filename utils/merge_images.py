@@ -94,19 +94,19 @@ def augment_final(image: cv2.Mat) -> cv2.Mat:
     transform = A.Compose(
         [
             A.RandomBrightnessContrast(
-                brightness_limit=(-0.3, 0.3),
-                contrast_limit=(-0.3, 0.3),
+                brightness_limit=(-0.2, 0.2),
+                contrast_limit=(-0.2, 0.3),
                 brightness_by_max=True,
                 always_apply=True,
-                p=1.0,
+                p=0.3,
             ),
             A.ColorJitter(
                 brightness=(1, 1),
                 contrast=(1, 1),
-                saturation=(0.5, 1),
-                hue=(-0.05, 0.05),
+                saturation=(0.5, 1.2),
+                hue=(-0.08, 0.08),
                 always_apply=True,
-                p=1.0,  # float
+                p=0.3,
             ),
             A.GaussNoise(
                 var_limit=(0.0, 20.0),
@@ -137,6 +137,7 @@ def create_training_data(
         os.path.join(background_dir, f)
         for f in os.listdir(background_dir)
         if os.path.isfile(os.path.join(background_dir, f))
+        and f.lower().endswith((".png", ".jpg", ".jpeg"))
     ]
     png_files = [
         os.path.join(png_dir, f)
@@ -180,12 +181,7 @@ def create_training_data(
             assert ground_truth.shape[1] == result.shape[1]
 
             cv2.imwrite(ground_truth_output_path, ground_truth)
-            if output_format == "jpg":
-                cv2.imwrite(
-                    image_output_path, result, [int(cv2.IMWRITE_JPEG_QUALITY), 95]
-                )
-            else:
-                cv2.imwrite(image_output_path, result)
+            cv2.imwrite(image_output_path, result)
 
             print(f"{i}/{len(png_files)}")
             i += 1
