@@ -169,7 +169,7 @@ def create_training_data(
             image_output_path = os.path.join(image_dir, file_name)
             ground_truth_output_path = os.path.join(
                 ground_truth_dir,
-                file_name.replace(f".{output_format}", f"_mask.{output_format}"),
+                file_name.replace(f".{output_format}", f".{output_format}"),
             )
 
             ground_truth = create_ground_truth_mask(png)
