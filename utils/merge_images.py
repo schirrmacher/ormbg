@@ -4,19 +4,22 @@ import argparse
 import random
 import string
 import albumentations as A
+from typing import Tuple, Optional
 
 
-def create_ground_truth_mask(image):
+def create_ground_truth_mask(image: cv2.Mat) -> cv2.Mat:
     return image[:, :, 3]
 
 
-def create_random_filename_from_filepath(path):
+def create_random_filename_from_filepath(path: str, output_format: str) -> str:
     letters = string.ascii_lowercase
     random_string = "".join(random.choice(letters) for i in range(13))
-    return random_string + "_" + os.path.basename(path)
+    return (
+        random_string + "_" + os.path.basename(path).split(".")[0] + f".{output_format}"
+    )
 
 
-def resize_background_if_needed(background, foreground):
+def resize_background_if_needed(background: cv2.Mat, foreground: cv2.Mat) -> cv2.Mat:
     bh, bw = background.shape[:2]
     fh, fw = foreground.shape[:2]
 
@@ -46,7 +49,9 @@ def resize_background_if_needed(background, foreground):
     return background_cropped
 
 
-def merge_images(background, foreground, position=(0, 0)):
+def merge_images(
+    background: cv2.Mat, foreground: cv2.Mat, position: Tuple[int, int] = (0, 0)
+) -> cv2.Mat:
     x, y = position
 
     fh, fw = foreground.shape[:2]
@@ -75,17 +80,17 @@ def merge_images(background, foreground, position=(0, 0)):
     return background
 
 
-def augment_background(image):
+def augment_background(image: cv2.Mat) -> cv2.Mat:
     transform = A.Compose([])
     return transform(image=image)["image"]
 
 
-def augment_png(image):
+def augment_png(image: cv2.Mat) -> cv2.Mat:
     transform = A.Compose([])
     return transform(image=image)["image"]
 
 
-def augment_final(image):
+def augment_final(image: cv2.Mat) -> cv2.Mat:
     transform = A.Compose(
         [
             A.RandomBrightnessContrast(
@@ -116,8 +121,13 @@ def augment_final(image):
 
 
 def create_training_data(
-    background_dir, png_dir, image_dir, ground_truth_dir, max_iterations
-):
+    background_dir: str,
+    png_dir: str,
+    image_dir: str,
+    ground_truth_dir: str,
+    max_iterations: Optional[int],
+    output_format: str,
+) -> None:
     if not os.path.exists(image_dir):
         os.makedirs(image_dir)
     if not os.path.exists(ground_truth_dir):
@@ -154,9 +164,12 @@ def create_training_data(
             background = augment_background(background)
             png = augment_png(png)
 
-            file_name = create_random_filename_from_filepath(png_path)
+            file_name = create_random_filename_from_filepath(png_path, output_format)
             image_output_path = os.path.join(image_dir, file_name)
-            ground_truth_output_path = os.path.join(ground_truth_dir, file_name)
+            ground_truth_output_path = os.path.join(
+                ground_truth_dir,
+                file_name.replace(f".{output_format}", f"_mask.{output_format}"),
+            )
 
             ground_truth = create_ground_truth_mask(png)
             result = merge_images(background, png)
@@ -167,7 +180,12 @@ def create_training_data(
             assert ground_truth.shape[1] == result.shape[1]
 
             cv2.imwrite(ground_truth_output_path, ground_truth)
-            cv2.imwrite(image_output_path, result)
+            if output_format == "jpg":
+                cv2.imwrite(
+                    image_output_path, result, [int(cv2.IMWRITE_JPEG_QUALITY), 95]
+                )
+            else:
+                cv2.imwrite(image_output_path, result)
 
             print(f"{i}/{len(png_files)}")
             i += 1
@@ -176,7 +194,7 @@ def create_training_data(
             print(f"Skipping {png_path}: {e}")
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(
         description="Merge images in folders with one image having transparency."
     )
@@ -213,6 +231,14 @@ def main():
         default=None,
         help="Maximum number of iterations",
     )
+    parser.add_argument(
+        "-of",
+        "--output_format",
+        type=str,
+        choices=["jpg", "png"],
+        default="jpg",
+        help="Output format for the merged images (jpg or png)",
+    )
     args = parser.parse_args()
 
     try:
@@ -222,6 +248,7 @@ def main():
             image_dir=args.image_dir,
             ground_truth_dir=args.ground_truth_dir,
             max_iterations=args.max_iterations,
+            output_format=args.output_format,
         )
     except KeyboardInterrupt:
         exit(0)
