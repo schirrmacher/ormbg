@@ -238,14 +238,14 @@ def train(
 
             ds, _ = net(inputs_v)
             loss2, _ = net.compute_loss(ds, labels_v)
-            loss = birefnet_pixloss(ds, labels_v)
-            loss = loss + birefnet_clsloss(ds, labels_v)
+            pix_loss = birefnet_pixloss(ds, labels_v)
+            cls_loss = loss + birefnet_clsloss(ds, labels_v)
 
             loss.backward()
             optimizer.step()
 
             # # print statistics
-            running_loss += loss.item()
+            running_loss += pix_loss.item() + cls_loss.item()
             running_tar_loss += loss2.item()
 
             # del outputs, loss

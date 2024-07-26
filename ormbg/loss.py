@@ -199,7 +199,7 @@ class PixLoss(nn.Module):
                     * self.lambdas_pix_last[criterion_name]
                 )
                 loss += _loss
-                print(criterion_name, _loss.item())
+
         return loss
 
 
