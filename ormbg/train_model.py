@@ -13,6 +13,8 @@ from pathlib import Path
 
 from models.ormbg import ORMBG
 
+from loss import ClsLoss, PixLoss
+
 from skimage import io
 
 from basics import f1_mae_torch
@@ -172,6 +174,8 @@ def train(
     hypar,
 ):
 
+    birefnet_pixloss = PixLoss()
+    birefnet_clsloss = ClsLoss()
     model_path = hypar["model_path"]
     model_save_fre = hypar["model_save_fre"]
     max_ite = hypar["max_ite"]
@@ -233,7 +237,9 @@ def train(
             optimizer.zero_grad()
 
             ds, _ = net(inputs_v)
-            loss2, loss = net.compute_loss(ds, labels_v)
+            loss2, _ = net.compute_loss(ds, labels_v)
+            loss = birefnet_pixloss(ds, labels_v)
+            loss = loss + birefnet_clsloss(ds, labels_v)
 
             loss.backward()
             optimizer.step()

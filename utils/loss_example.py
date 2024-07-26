@@ -5,13 +5,8 @@ import numpy as np
 from skimage import io
 import torch.nn.functional as F
 
-import sys
-
-sys.path.append("../ormbg")
-sys.path.append("../experiments")
-
 from ormbg.models.ormbg import ORMBG
-from experiments.loss import PixLoss, ClsLoss
+from ormbg.loss import PixLoss, ClsLoss
 
 
 def parse_args():
