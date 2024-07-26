@@ -29,9 +29,7 @@ Join our [Research Discord Group](https://discord.gg/YYZ3D66t)!
 
 ![](examples/image/image01_no_background.png)
 
-This model is a **fully open-source background remover** optimized for images with humans. It is based on [Highly Accurate Dichotomous Image Segmentation research](https://github.com/xuebinqin/DIS). The model was trained with the synthetic [Human Segmentation Dataset](https://huggingface.co/datasets/schirrmacher/humans), [P3M-10k](https://paperswithcode.com/dataset/p3m-10k), [PPM-100](https://github.com/ZHKKKe/PPM) and [AIM-500](https://paperswithcode.com/dataset/aim-500).
-
-This model is similar to [RMBG-1.4](https://huggingface.co/briaai/RMBG-1.4), but with open training data/process and commercially free to use.
+This model is a **fully open-source background remover** optimized for images with humans. It is based on [Highly Accurate Dichotomous Image Segmentation research](https://github.com/xuebinqin/DIS).
 
 ## Inference
 
@@ -60,14 +58,23 @@ I started training the model with synthetic images of the [Human Segmentation Da
 
 Synthetic datasets have limitations for achieving great segmentation results. This is because artificial lighting, occlusion, scale or backgrounds create a gap between synthetic and real images. A "model trained solely on synthetic data generated with naïve domain randomization struggles to generalize on the real domain", see [PEOPLESANSPEOPLE: A Synthetic Data Generator for Human-Centric Computer Vision (2022)](https://arxiv.org/pdf/2112.09290).
 
-Latest changes (05/07/2024):
+### Next steps:
+
+- Expand dataset with synthetic and real images
+- Research on state of the art loss functions
+
+### Latest changes (26/07/2024):
+
+- Created synthetic dataset with 10k images, crafted with [BlenderProc](https://github.com/DLR-RM/BlenderProc)
+- Removed training data created with [LayerDiffuse](https://github.com/layerdiffusion/LayerDiffuse), since it lacks the accuracy needed
+- Improved model performance (after 100k iterations):
+  - F1: 0.9888 -> 0.9932
+  - MAE: 0.0113 -> 0.008
+  - Scores based on [this validation dataset](https://drive.google.com/drive/folders/1Yy9clZ58xCiai1zYESQkEKZCkslSC8eg)
+
+### 05/07/2024
 
 - Added [P3M-10K](https://paperswithcode.com/dataset/p3m-10k) dataset for training and validation
 - Added [AIM-500](https://paperswithcode.com/dataset/aim-500) dataset for training and validation
 - Added [PPM-100](https://github.com/ZHKKKe/PPM) dataset for training and validation
 - Applied [Grid Dropout](https://albumentations.ai/docs/api_reference/augmentations/dropout/grid_dropout/) to make the model smarter
-
-Next steps:
-
-- Expand dataset with synthetic and real images
-- Research on multi-step segmentation/matting by incorporating [ViTMatte](https://github.com/hustvl/ViTMatte)
