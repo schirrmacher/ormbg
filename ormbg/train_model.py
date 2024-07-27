@@ -13,7 +13,7 @@ from pathlib import Path
 
 from models.ormbg import ORMBG
 
-from loss import ClsLoss, PixLoss
+from loss import ClsLoss, BiRefNetPixLoss
 
 from skimage import io
 
@@ -174,7 +174,7 @@ def train(
     hypar,
 ):
 
-    birefnet_pixloss = PixLoss()
+    birefnet_pixloss = BiRefNetPixLoss()
     birefnet_clsloss = ClsLoss()
     model_path = hypar["model_path"]
     model_save_fre = hypar["model_save_fre"]
@@ -238,14 +238,13 @@ def train(
 
             ds, _ = net(inputs_v)
             loss2, _ = net.compute_loss(ds, labels_v)
-            pix_loss = birefnet_pixloss(ds, labels_v)
-            cls_loss = loss + birefnet_clsloss(ds, labels_v)
+            pix_loss = birefnet_pixloss.forward(ds, labels_v)
 
-            loss.backward()
+            pix_loss.backward()
             optimizer.step()
 
             # # print statistics
-            running_loss += pix_loss.item() + cls_loss.item()
+            running_loss += pix_loss.item()
             running_tar_loss += loss2.item()
 
             # del outputs, loss

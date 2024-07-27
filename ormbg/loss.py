@@ -3,15 +3,16 @@ from torch import nn
 import torch.nn.functional as F
 from torch.autograd import Variable
 from math import exp
-
-# Source: https://github.com/ZhengPeng7/BiRefNet/tree/26e1b1e58e3e719a3426420b9285685d4fef298d
+from typing import List, Optional, Dict
 
 
 class ContourLoss(torch.nn.Module):
-    def __init__(self):
+    def __init__(self) -> None:
         super(ContourLoss, self).__init__()
 
-    def forward(self, pred, target, weight=10):
+    def forward(
+        self, pred: torch.Tensor, target: torch.Tensor, weight: int = 10
+    ) -> torch.Tensor:
         """
         target, pred: tensor of shape (B, C, H, W), where target[:,:,region_in_contour] == 1,
                         target[:,:,region_out_contour] == 0.
@@ -49,10 +50,10 @@ class ContourLoss(torch.nn.Module):
 
 
 class IoULoss(torch.nn.Module):
-    def __init__(self):
+    def __init__(self) -> None:
         super(IoULoss, self).__init__()
 
-    def forward(self, pred, target):
+    def forward(self, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         b = pred.shape[0]
         IoU = 0.0
         for i in range(0, b):
@@ -67,10 +68,10 @@ class IoULoss(torch.nn.Module):
 
 
 class StructureLoss(torch.nn.Module):
-    def __init__(self):
+    def __init__(self) -> None:
         super(StructureLoss, self).__init__()
 
-    def forward(self, pred, target):
+    def forward(self, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         weit = 1 + 5 * torch.abs(
             F.avg_pool2d(target, kernel_size=31, stride=1, padding=15) - target
         )
@@ -86,11 +87,11 @@ class StructureLoss(torch.nn.Module):
 
 
 class PatchIoULoss(torch.nn.Module):
-    def __init__(self):
+    def __init__(self) -> None:
         super(PatchIoULoss, self).__init__()
         self.iou_loss = IoULoss()
 
-    def forward(self, pred, target):
+    def forward(self, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         win_y, win_x = 64, 64
         iou_loss = 0.0
         for anchor_y in range(0, target.shape[0], win_y):
@@ -107,10 +108,12 @@ class PatchIoULoss(torch.nn.Module):
 
 
 class ThrReg_loss(torch.nn.Module):
-    def __init__(self):
+    def __init__(self) -> None:
         super(ThrReg_loss, self).__init__()
 
-    def forward(self, pred, gt=None):
+    def forward(
+        self, pred: torch.Tensor, gt: Optional[torch.Tensor] = None
+    ) -> torch.Tensor:
         return torch.mean(1 - ((pred - 0) ** 2 + (pred - 1) ** 2))
 
 
@@ -119,13 +122,13 @@ class ClsLoss(nn.Module):
     Auxiliary classification loss for each refined class output.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         super(ClsLoss, self).__init__()
         self.lambdas_cls = {"ce": 5.0}
 
         self.criterions_last = {"ce": nn.CrossEntropyLoss()}
 
-    def forward(self, preds, gt):
+    def forward(self, preds: List[torch.Tensor], gt: torch.Tensor) -> torch.Tensor:
         loss = 0.0
         for _, pred_lvl in enumerate(preds):
             if pred_lvl is None:
@@ -135,15 +138,15 @@ class ClsLoss(nn.Module):
         return loss
 
 
-class PixLoss(nn.Module):
+class BiRefNetPixLoss(nn.Module):
     """
     Pixel loss for each refined map output.
     """
 
-    def __init__(self):
-        super(PixLoss, self).__init__()
+    def __init__(self) -> None:
+        super(BiRefNetPixLoss, self).__init__()
 
-        self.lambdas_pix_last = {
+        self.loss_weights = {
             # not 0 means opening this loss
             # original rate -- 1 : 30 : 1.5 : 0.2, bce x 30
             "bce": 30 * 1,  # high performance
@@ -153,65 +156,73 @@ class PixLoss(nn.Module):
             "triplet": 3 * 0,
             "reg": 100 * 0,
             "ssim": 10 * 1,  # help contours,
-            "cnt": 5 * 1,  # help contours
+            "cnt": 5 * 0,  # help contours
             "structure": 5
             * 1,  # structure loss from codes of MVANet. A little improvement on DIS-TE[1,2,3], a bit more decrease on DIS-TE4.
         }
 
-        self.criterions_last = {}
-        if "bce" in self.lambdas_pix_last and self.lambdas_pix_last["bce"]:
-            self.criterions_last["bce"] = nn.BCELoss()
-        if "iou" in self.lambdas_pix_last and self.lambdas_pix_last["iou"]:
-            self.criterions_last["iou"] = IoULoss()
-        if "iou_patch" in self.lambdas_pix_last and self.lambdas_pix_last["iou_patch"]:
-            self.criterions_last["iou_patch"] = PatchIoULoss()
-        if "ssim" in self.lambdas_pix_last and self.lambdas_pix_last["ssim"]:
-            self.criterions_last["ssim"] = SSIMLoss()
-        if "mse" in self.lambdas_pix_last and self.lambdas_pix_last["mse"]:
-            self.criterions_last["mse"] = nn.MSELoss()
-        if "reg" in self.lambdas_pix_last and self.lambdas_pix_last["reg"]:
-            self.criterions_last["reg"] = ThrReg_loss()
-        if "cnt" in self.lambdas_pix_last and self.lambdas_pix_last["cnt"]:
-            self.criterions_last["cnt"] = ContourLoss()
-        if "structure" in self.lambdas_pix_last and self.lambdas_pix_last["structure"]:
-            self.criterions_last["structure"] = StructureLoss()
+        self.losses: Dict[str, nn.Module] = {}
+        if "bce" in self.loss_weights and self.loss_weights["bce"]:
+            self.losses["bce"] = nn.BCELoss()
+        if "iou" in self.loss_weights and self.loss_weights["iou"]:
+            self.losses["iou"] = IoULoss()
+        if "iou_patch" in self.loss_weights and self.loss_weights["iou_patch"]:
+            self.losses["iou_patch"] = PatchIoULoss()
+        if "ssim" in self.loss_weights and self.loss_weights["ssim"]:
+            self.losses["ssim"] = SSIMLoss()
+        if "mse" in self.loss_weights and self.loss_weights["mse"]:
+            self.losses["mse"] = nn.MSELoss()
+        if "reg" in self.loss_weights and self.loss_weights["reg"]:
+            self.losses["reg"] = ThrReg_loss()
+        if "cnt" in self.loss_weights and self.loss_weights["cnt"]:
+            self.losses["cnt"] = ContourLoss()
+        if "structure" in self.loss_weights and self.loss_weights["structure"]:
+            self.losses["structure"] = StructureLoss()
 
-    def forward(self, scaled_preds, gt):
-        loss = 0.0
-        criterions_embedded_with_sigmoid = [
-            "structure",
-        ] + []
-        for _, pred_lvl in enumerate(scaled_preds):
-            if pred_lvl.shape != gt.shape:
-                pred_lvl = nn.functional.interpolate(
-                    pred_lvl, size=gt.shape[2:], mode="bilinear", align_corners=True
+    def compute_losses(
+        self, scaled_preds: List[torch.Tensor], gt: torch.Tensor
+    ) -> Dict[str, float]:
+        losses = {}
+        criterions_embedded_with_sigmoid = ["structure"]
+        for prediction in scaled_preds:
+            if prediction.shape != gt.shape:
+                prediction = nn.functional.interpolate(
+                    prediction, size=gt.shape[2:], mode="bilinear", align_corners=True
                 )
-            for criterion_name, criterion in self.criterions_last.items():
-                _loss = (
+            for criterion_name, criterion in self.losses.items():
+                specific_loss = (
                     criterion(
                         (
-                            pred_lvl.sigmoid()
+                            prediction.sigmoid()
                             if criterion_name not in criterions_embedded_with_sigmoid
-                            else pred_lvl
+                            else prediction
                         ),
                         gt,
                     )
-                    * self.lambdas_pix_last[criterion_name]
+                    * self.loss_weights[criterion_name]
                 )
-                loss += _loss
+                losses[criterion_name] = specific_loss
+        return losses
 
+    def forward(
+        self, scaled_preds: List[torch.Tensor], gt: torch.Tensor
+    ) -> torch.Tensor:
+        loss = 0.0
+        losses = self.compute_losses(scaled_preds, gt)
+        for criterion_name, criterion in self.losses.items():
+            loss += losses[criterion_name]
         return loss
 
 
 class SSIMLoss(torch.nn.Module):
-    def __init__(self, window_size=11, size_average=True):
+    def __init__(self, window_size: int = 11, size_average: bool = True) -> None:
         super(SSIMLoss, self).__init__()
         self.window_size = window_size
         self.size_average = size_average
         self.channel = 1
         self.window = create_window(window_size, self.channel)
 
-    def forward(self, img1, img2):
+    def forward(self, img1: torch.Tensor, img2: torch.Tensor) -> torch.Tensor:
         (_, channel, _, _) = img1.size()
         if channel == self.channel and self.window.data.type() == img1.data.type():
             window = self.window
@@ -227,7 +238,7 @@ class SSIMLoss(torch.nn.Module):
         )
 
 
-def gaussian(window_size, sigma):
+def gaussian(window_size: int, sigma: float) -> torch.Tensor:
     gauss = torch.Tensor(
         [
             exp(-((x - window_size // 2) ** 2) / float(2 * sigma**2))
@@ -237,7 +248,7 @@ def gaussian(window_size, sigma):
     return gauss / gauss.sum()
 
 
-def create_window(window_size, channel):
+def create_window(window_size: int, channel: int) -> Variable:
     _1D_window = gaussian(window_size, 1.5).unsqueeze(1)
     _2D_window = _1D_window.mm(_1D_window.t()).float().unsqueeze(0).unsqueeze(0)
     window = Variable(
@@ -246,7 +257,14 @@ def create_window(window_size, channel):
     return window
 
 
-def _ssim(img1, img2, window, window_size, channel, size_average=True):
+def _ssim(
+    img1: torch.Tensor,
+    img2: torch.Tensor,
+    window: Variable,
+    window_size: int,
+    channel: int,
+    size_average: bool = True,
+) -> torch.Tensor:
     mu1 = F.conv2d(img1, window, padding=window_size // 2, groups=channel)
     mu2 = F.conv2d(img2, window, padding=window_size // 2, groups=channel)
 
@@ -278,7 +296,7 @@ def _ssim(img1, img2, window, window_size, channel, size_average=True):
         return ssim_map.mean(1).mean(1).mean(1)
 
 
-def SSIM(x, y):
+def SSIM(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
     C1 = 0.01**2
     C2 = 0.03**2
 
@@ -299,6 +317,6 @@ def SSIM(x, y):
     return torch.clamp((1 - SSIM) / 2, 0, 1)
 
 
-def saliency_structure_consistency(x, y):
+def saliency_structure_consistency(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
     ssim = torch.mean(SSIM(x, y))
     return ssim

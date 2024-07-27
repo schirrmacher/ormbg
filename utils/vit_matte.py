@@ -131,9 +131,14 @@ def run(
     return alpha, foreground, res_bg_replacement
 
 
+def valid_image_file(filename: str) -> bool:
+    valid_extensions = {".png", ".jpg", ".jpeg", ".bmp", ".tiff"}
+    return any(filename.lower().endswith(ext) for ext in valid_extensions)
+
+
 def process_folder(image_folder: str, trimap_folder: str, args):
-    image_files = sorted(os.listdir(image_folder))
-    trimap_files = sorted(os.listdir(trimap_folder))
+    image_files = sorted([f for f in os.listdir(image_folder) if valid_image_file(f)])
+    trimap_files = sorted([f for f in os.listdir(trimap_folder) if valid_image_file(f)])
 
     for image_file, trimap_file in zip(image_files, trimap_files):
         image_path = os.path.join(image_folder, image_file)
