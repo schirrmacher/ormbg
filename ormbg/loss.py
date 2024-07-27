@@ -201,7 +201,10 @@ class BiRefNetPixLoss(nn.Module):
                     )
                     * self.loss_weights[criterion_name]
                 )
-                losses[criterion_name] = specific_loss
+                if criterion_name in losses:
+                    losses[criterion_name] += specific_loss
+                else:
+                    losses[criterion_name] = specific_loss
         return losses
 
     def forward(

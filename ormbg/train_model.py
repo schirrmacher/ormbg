@@ -248,7 +248,7 @@ def train(
             running_tar_loss += loss2.item()
 
             # del outputs, loss
-            del ds, loss2, loss
+            del ds, loss2, pix_loss
             end_inf_loss_back = time.time() - start_inf_loss_back
 
             print(
