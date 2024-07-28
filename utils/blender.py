@@ -94,6 +94,9 @@ def main(
                 random_bool = bool(random.getrandbits(1))
                 start_angle = -135 if random_bool else 45
                 end_angle = -45 if random_bool else 135
+            elif camera_mode == "round":
+                start_angle = -180
+                end_angle = 180
 
             point_of_interest = bproc.object.compute_poi(targets)
 
@@ -327,7 +330,7 @@ if __name__ == "__main__":
         "-c",
         type=str,
         default="frontal_and_back",
-        choices=["frontal", "back", "frontal_and_back"],
+        choices=["frontal", "back", "frontal_and_back", "round"],
         help="Mode of camera positioning: 'frontal', 'back', or 'frontal_and_back'",
     )
 
